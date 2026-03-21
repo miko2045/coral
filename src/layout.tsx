@@ -65,7 +65,9 @@ export function pageLayout({ lang, activePage, children }: LayoutProps) {
           </div>
         </header>
 
-        {children}
+        <div id="pageContent" class="page-transition" data-page={activePage}>
+          {children}
+        </div>
 
         <footer class="page-footer">
           <p>{t('home', 'builtWith', lang)} <i class="fa-solid fa-heart" style="color: #EF4444"></i> {t('home', 'and', lang)} <a href="https://hono.dev" target="_blank" rel="noopener">Hono</a></p>

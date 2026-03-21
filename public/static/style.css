@@ -1137,6 +1137,68 @@ a { text-decoration: none; color: inherit; }
   color: white;
 }
 
+/* ======================================
+   SPA PAGE TRANSITION ANIMATIONS
+   ====================================== */
+
+.page-transition {
+  position: relative;
+  will-change: transform, opacity;
+}
+
+/* Slide out to LEFT (navigating forward / right in nav) */
+@keyframes slideOutLeft {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(-60px); opacity: 0; }
+}
+
+/* Slide in from RIGHT (new page enters from right) */
+@keyframes slideInRight {
+  from { transform: translateX(60px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+/* Slide out to RIGHT (navigating backward / left in nav) */
+@keyframes slideOutRight {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(60px); opacity: 0; }
+}
+
+/* Slide in from LEFT (new page enters from left) */
+@keyframes slideInLeft {
+  from { transform: translateX(-60px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+.slide-out-left {
+  animation: slideOutLeft 0.28s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+  pointer-events: none;
+}
+
+.slide-in-left {
+  animation: slideInRight 0.32s cubic-bezier(0, 0, 0.2, 1) forwards;
+}
+
+.slide-out-right {
+  animation: slideOutRight 0.28s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+  pointer-events: none;
+}
+
+.slide-in-right {
+  animation: slideInLeft 0.32s cubic-bezier(0, 0, 0.2, 1) forwards;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .slide-out-left, .slide-in-left,
+  .slide-out-right, .slide-in-right {
+    animation: none !important;
+  }
+  .page-transition {
+    will-change: auto;
+  }
+}
+
 /* === Card entrance animation === */
 [data-aos] {
   opacity: 0;
