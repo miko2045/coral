@@ -87,11 +87,11 @@
   //  NAV INDICATOR
   // ==============================================
   let indicatorTimer = null;
+  let indicatorLocked = false; // true after click-nav, keeps indicator on active
 
   function moveIndicator(el) {
     const ind = document.getElementById('navIndicator');
     if (!ind || !el) return;
-    // Cancel any pending snap-back
     if (indicatorTimer) { clearTimeout(indicatorTimer); indicatorTimer = null; }
     const nav = el.parentElement;
     const navRect = nav.getBoundingClientRect();
@@ -102,27 +102,31 @@
   }
 
   function clearIndicator() {
-    // Delay snap-back so fast mouse moves between links don't cause flicker
-    if (indicatorTimer) clearTimeout(indicatorTimer);
-    indicatorTimer = setTimeout(() => {
-      indicatorTimer = null;
-      const ind = document.getElementById('navIndicator');
-      if (!ind) return;
-      const active = document.querySelector('.nav-link.active');
-      if (active) moveIndicator(active);
-      else ind.classList.remove('visible');
-    }, 120);
+    // Just stay where we are — no snap-back at all.
+    // The indicator will move naturally when the user hovers another link
+    // or when the page changes (updateNavActive).
   }
 
   function initNavIndicator() {
     document.querySelectorAll('.header-nav .nav-link').forEach(link => {
-      link.addEventListener('mouseenter', () => moveIndicator(link));
+      link.addEventListener('mouseenter', () => {
+        indicatorLocked = false;
+        moveIndicator(link);
+      });
     });
     const navContainer = document.querySelector('.header-nav');
-    if (navContainer) navContainer.addEventListener('mouseleave', clearIndicator);
+    if (navContainer) navContainer.addEventListener('mouseleave', () => {
+      // Smoothly return to active after mouse leaves nav area
+      indicatorTimer = setTimeout(() => {
+        indicatorTimer = null;
+        const active = document.querySelector('.nav-link.active');
+        if (active) moveIndicator(active);
+        indicatorLocked = true;
+      }, 300);
+    });
 
     const active = document.querySelector('.nav-link.active');
-    if (active) requestAnimationFrame(() => moveIndicator(active));
+    if (active) requestAnimationFrame(() => { moveIndicator(active); indicatorLocked = true; });
   }
 
   function updateNavActive(path) {
@@ -133,6 +137,7 @@
     requestAnimationFrame(() => {
       const active = document.querySelector('.nav-link.active');
       if (active) moveIndicator(active);
+      indicatorLocked = true;
     });
   }
 
