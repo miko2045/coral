@@ -55,82 +55,18 @@ export function trendingPage(
 
   const activeRepos = tab === 'rising' ? risingRepos : hotRepos
 
-  const content = (
-    <main class="page-content">
-      {/* Page Title */}
-      <div class="page-header-compact">
-        <h1 class="page-header-title">
-          <i class="fa-brands fa-github"></i>
-          {t('trending', 'title', lang)}
-        </h1>
-        <span class="page-header-count">{t('trending', 'subtitle', lang)}</span>
-      </div>
-
-      <div class="trending-status-bar-standalone">
-        {cacheAge && (
-          <span class="trending-cache-hint">
-            <i class="fa-solid fa-clock"></i> {t('trending', 'dataFrom', lang)} {new Date(cacheAge).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}
-          </span>
-        )}
-        <span class={`trending-api-badge ${apiStatus === 'ok' || apiStatus === 'cached' ? 'api-ok' : apiStatus === 'fallback' ? 'api-warn' : 'api-err'}`}>
-          <i class={`fa-solid ${apiStatus === 'ok' || apiStatus === 'cached' ? 'fa-circle-check' : apiStatus === 'fallback' ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}`}></i>
-          {apiStatus === 'ok' ? 'Token API' : apiStatus === 'cached' ? t('trending', 'cached', lang) : apiStatus === 'fallback' ? t('trending', 'noToken', lang) : t('trending', 'limited', lang)}
-        </span>
-        <span class="trending-quota-hint">
-          <i class="fa-solid fa-gauge-high"></i> {t('trending', 'refreshQuota', lang)}: {rateLimitInfo.remaining}/30
-        </span>
-        <a href={`/trending?tab=${tab}${selectedLang ? '&lang_filter=' + selectedLang : ''}&refresh=1`}
-           class={`trending-refresh-btn ${!rateLimitInfo.allowed ? 'disabled' : ''}`}
-           title={!rateLimitInfo.allowed ? t('trending', 'limitReached', lang) : t('trending', 'forceRefresh', lang)}>
-          <i class="fa-solid fa-rotate"></i> {t('trending', 'refresh', lang)}
-        </a>
-      </div>
-      {!rateLimitInfo.allowed && (
-        <div class="trending-rate-warn">
-          <i class="fa-solid fa-shield-halved"></i>
-          {t('trending', 'rateLimitMsg', lang)}
-        </div>
-      )}
-
-      {/* Tab Switcher */}
-      <div class="trending-tabs">
-        <a href={`/trending?tab=hot${selectedLang ? '&lang_filter=' + selectedLang : ''}`}
-           class={`trending-tab ${tab === 'hot' ? 'active' : ''}`}>
-          <i class="fa-solid fa-fire"></i>
-          <span>{t('trending', 'hotTab', lang)}</span>
-          <span class="tab-badge">{hotRepos.length}</span>
-        </a>
-        <a href={`/trending?tab=rising${selectedLang ? '&lang_filter=' + selectedLang : ''}`}
-           class={`trending-tab ${tab === 'rising' ? 'active' : ''}`}>
-          <i class="fa-solid fa-arrow-trend-up"></i>
-          <span>{t('trending', 'risingTab', lang)}</span>
-          <span class="tab-badge">{risingRepos.length}</span>
-        </a>
-      </div>
-
-      {/* Language Filter */}
-      <div class="trending-filters">
-        <span class="filter-label"><i class="fa-solid fa-code"></i> {t('trending', 'language', lang)}</span>
-        <div class="filter-tags">
-          {popularLangs.map(pl => (
-            <a href={`/trending?tab=${tab}${pl ? '&lang_filter=' + encodeURIComponent(pl) : ''}`}
-               class={`filter-tag ${selectedLang === pl ? 'active' : ''}`}
-               key={pl || 'all'}>
-              {pl || t('trending', 'allLangs', lang)}
-            </a>
-          ))}
-        </div>
-      </div>
-
-      {/* Repo List */}
-      <div class="trending-list">
-        {activeRepos.length === 0 && (
+  // Helper: render a repo list
+  function repoList(repos: any[], listTab: string) {
+    return (
+      <div class={`trending-list`} id={`trendingList-${listTab}`}
+           style={listTab !== tab ? 'display:none' : ''}>
+        {repos.length === 0 && (
           <div class="trending-empty">
             <i class="fa-solid fa-magnifying-glass"></i>
             <p>{t('trending', 'noResults', lang)}</p>
           </div>
         )}
-        {activeRepos.map((repo: any, idx: number) => (
+        {repos.map((repo: any, idx: number) => (
           <a href={repo.html_url} target="_blank" rel="noopener"
              class="trending-repo-card" key={repo.id}>
             <div class="trending-rank">
@@ -144,7 +80,7 @@ export function trendingPage(
                   <span class="trending-name-sep">/</span>
                   <h3 class="trending-repo-name">{repo.name}</h3>
                 </div>
-                {tab === 'rising' && repo._starsToday > 0 && (
+                {listTab === 'rising' && repo._starsToday > 0 && (
                   <span class="trending-rising-badge">
                     <i class="fa-solid fa-arrow-up"></i> +{formatNumber(repo._starsToday)}
                   </span>
@@ -192,6 +128,79 @@ export function trendingPage(
             </div>
           </a>
         ))}
+      </div>
+    )
+  }
+
+  const content = (
+    <main class="page-content">
+      {/* Page Title */}
+      <div class="page-header-compact">
+        <h1 class="page-header-title">
+          <i class="fa-brands fa-github"></i>
+          {t('trending', 'title', lang)}
+        </h1>
+        <span class="page-header-count">{t('trending', 'subtitle', lang)}</span>
+      </div>
+
+      <div class="trending-status-bar-standalone">
+        {cacheAge && (
+          <span class="trending-cache-hint">
+            <i class="fa-solid fa-clock"></i> {t('trending', 'dataFrom', lang)} {new Date(cacheAge).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}
+          </span>
+        )}
+        <span class={`trending-api-badge ${apiStatus === 'ok' || apiStatus === 'cached' ? 'api-ok' : apiStatus === 'fallback' ? 'api-warn' : 'api-err'}`}>
+          <i class={`fa-solid ${apiStatus === 'ok' || apiStatus === 'cached' ? 'fa-circle-check' : apiStatus === 'fallback' ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}`}></i>
+          {apiStatus === 'ok' ? 'Token API' : apiStatus === 'cached' ? t('trending', 'cached', lang) : apiStatus === 'fallback' ? t('trending', 'noToken', lang) : t('trending', 'limited', lang)}
+        </span>
+        <span class="trending-quota-hint">
+          <i class="fa-solid fa-gauge-high"></i> {t('trending', 'refreshQuota', lang)}: {rateLimitInfo.remaining}/30
+        </span>
+        <a href={`/trending?tab=${tab}${selectedLang ? '&lang_filter=' + selectedLang : ''}&refresh=1`}
+           class={`trending-refresh-btn ${!rateLimitInfo.allowed ? 'disabled' : ''}`}
+           title={!rateLimitInfo.allowed ? t('trending', 'limitReached', lang) : t('trending', 'forceRefresh', lang)}>
+          <i class="fa-solid fa-rotate"></i> {t('trending', 'refresh', lang)}
+        </a>
+      </div>
+      {!rateLimitInfo.allowed && (
+        <div class="trending-rate-warn">
+          <i class="fa-solid fa-shield-halved"></i>
+          {t('trending', 'rateLimitMsg', lang)}
+        </div>
+      )}
+
+      {/* Tab Switcher — client-side switching */}
+      <div class="trending-tabs" id="trendingTabs" data-current-tab={tab}>
+        <button type="button" class={`trending-tab ${tab === 'hot' ? 'active' : ''}`} data-tab="hot">
+          <i class="fa-solid fa-fire"></i>
+          <span>{t('trending', 'hotTab', lang)}</span>
+          <span class="tab-badge">{hotRepos.length}</span>
+        </button>
+        <button type="button" class={`trending-tab ${tab === 'rising' ? 'active' : ''}`} data-tab="rising">
+          <i class="fa-solid fa-arrow-trend-up"></i>
+          <span>{t('trending', 'risingTab', lang)}</span>
+          <span class="tab-badge">{risingRepos.length}</span>
+        </button>
+      </div>
+
+      {/* Language Filter */}
+      <div class="trending-filters">
+        <span class="filter-label"><i class="fa-solid fa-code"></i> {t('trending', 'language', lang)}</span>
+        <div class="filter-tags">
+          {popularLangs.map(pl => (
+            <a href={`/trending?tab=${tab}${pl ? '&lang_filter=' + encodeURIComponent(pl) : ''}`}
+               class={`filter-tag ${selectedLang === pl ? 'active' : ''}`}
+               key={pl || 'all'}>
+              {pl || t('trending', 'allLangs', lang)}
+            </a>
+          ))}
+        </div>
+      </div>
+
+      {/* Both tab lists rendered, only active one visible */}
+      <div id="trendingContent">
+        {repoList(hotRepos, 'hot')}
+        {repoList(risingRepos, 'rising')}
       </div>
 
       {/* Trending Footer */}

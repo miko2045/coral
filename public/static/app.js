@@ -372,6 +372,90 @@
   }
 
   // ==============================================
+  //  TRENDING TABS — Local tab switching with animation
+  // ==============================================
+  function initTrendingTabs() {
+    const tabsWrap = document.getElementById('trendingTabs');
+    if (!tabsWrap) return;
+
+    const buttons = tabsWrap.querySelectorAll('.trending-tab[data-tab]');
+    const hotList = document.getElementById('trendingList-hot');
+    const risingList = document.getElementById('trendingList-rising');
+    if (!hotList || !risingList) return;
+
+    const lists = { hot: hotList, rising: risingList };
+
+    buttons.forEach(btn => {
+      if (btn.dataset.trendTabBound) return;
+      btn.dataset.trendTabBound = 'true';
+
+      btn.addEventListener('click', () => {
+        const toTab = btn.getAttribute('data-tab');
+        const curTab = tabsWrap.getAttribute('data-current-tab');
+        if (toTab === curTab) return;
+
+        // Update active button
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        tabsWrap.setAttribute('data-current-tab', toTab);
+
+        // Determine direction
+        const dir = toTab === 'rising' ? 'left' : 'right';
+
+        const hideList = lists[curTab];
+        const showList = lists[toTab];
+
+        // Animate out current list
+        hideList.classList.add('tab-fade-out-' + dir);
+
+        const onOutDone = () => {
+          hideList.classList.remove('tab-fade-out-' + dir);
+          hideList.style.display = 'none';
+
+          // Show new list with animation
+          showList.style.display = '';
+          showList.classList.add('tab-fade-in-' + dir);
+
+          const onInDone = () => {
+            showList.classList.remove('tab-fade-in-' + dir);
+          };
+          showList.addEventListener('animationend', onInDone, { once: true });
+          setTimeout(onInDone, 320);
+        };
+
+        hideList.addEventListener('animationend', onOutDone, { once: true });
+        setTimeout(onOutDone, 320);
+
+        // Update URL without page reload
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', toTab);
+        history.replaceState({ path: url.pathname + url.search }, '', url.toString());
+
+        // Update language filter links to reflect new tab
+        document.querySelectorAll('.filter-tag').forEach(a => {
+          const href = a.getAttribute('href');
+          if (href) {
+            const u = new URL(href, window.location.origin);
+            u.searchParams.set('tab', toTab);
+            a.setAttribute('href', u.pathname + u.search);
+          }
+        });
+
+        // Update refresh button
+        const refreshBtn = document.querySelector('.trending-refresh-btn');
+        if (refreshBtn) {
+          const href = refreshBtn.getAttribute('href');
+          if (href) {
+            const u = new URL(href, window.location.origin);
+            u.searchParams.set('tab', toTab);
+            refreshBtn.setAttribute('href', u.pathname + u.search);
+          }
+        }
+      });
+    });
+  }
+
+  // ==============================================
   //  CARD ENTRANCE ANIMATION
   // ==============================================
   function initAOS() {
@@ -397,6 +481,7 @@
     initStatCountUp();
     initDownloadButtons();
     initDownloadSearch();
+    initTrendingTabs();
     initAOS();
   }
 

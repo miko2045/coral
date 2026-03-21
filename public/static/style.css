@@ -2126,10 +2126,13 @@ a { text-decoration: none; color: inherit; }
 .downloads-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
   padding-bottom: 30px;
   max-width: 700px;
   margin: 0 auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 /* === Entry Cards (homepage quick nav) === */
@@ -2242,17 +2245,33 @@ a { text-decoration: none; color: inherit; }
    ====================================== */
 
 .download-card {
-  transition: all var(--transition);
+  transition: background var(--transition);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.download-card:last-child {
+  border-bottom: none;
 }
 
 .download-card:hover {
-  transform: translateY(-2px);
+  transform: none;
+  background: var(--hover-bg);
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.download-card .card-inner {
+  padding: 14px 20px;
 }
 
 .download-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+  flex-direction: row;
 }
 
 .download-icon {
@@ -2418,6 +2437,10 @@ a { text-decoration: none; color: inherit; }
   transition: all var(--transition);
   flex: 1;
   justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .trending-tab:hover {
@@ -2875,6 +2898,36 @@ a { text-decoration: none; color: inherit; }
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* === Trending Tab Switching Animations === */
+@keyframes tabFadeOutLeft {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-40px); }
+}
+@keyframes tabFadeOutRight {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(40px); }
+}
+@keyframes tabFadeInLeft {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes tabFadeInRight {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.tab-fade-out-left  { animation: tabFadeOutLeft  0.28s ease both; }
+.tab-fade-out-right { animation: tabFadeOutRight 0.28s ease both; }
+.tab-fade-in-left   { animation: tabFadeInLeft   0.28s ease both; }
+.tab-fade-in-right  { animation: tabFadeInRight  0.28s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-fade-out-left, .tab-fade-out-right,
+  .tab-fade-in-left, .tab-fade-in-right {
+    animation: none !important;
+  }
 }
 
 /* === Trending Responsive === */
