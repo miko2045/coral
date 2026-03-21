@@ -112,27 +112,6 @@ app.get('/downloads', async (c) => {
   return c.render(downloadsPage(files, lang), { title: `${t('home', 'downloadsTitle', lang)} — ${profile.name}`, lang })
 })
 
-// ==================== 项目页面 ====================
-app.get('/projects', async (c) => {
-  const lang = parseLang(c.req.header('Cookie'))
-  const websites = await getData(c.env.KV, 'websites', DEFAULT_WEBSITES)
-  return c.render(projectsPage(websites, lang), { title: lang === 'zh' ? '网站项目 — Portal' : 'Projects — Portal', lang })
-})
-
-// ==================== GitHub 页面 ====================
-app.get('/github', async (c) => {
-  const lang = parseLang(c.req.header('Cookie'))
-  const repos = await getData(c.env.KV, 'repos', DEFAULT_REPOS)
-  return c.render(githubPage(repos, lang), { title: lang === 'zh' ? 'GitHub 项目 — Portal' : 'GitHub — Portal', lang })
-})
-
-// ==================== 下载页面 ====================
-app.get('/downloads', async (c) => {
-  const lang = parseLang(c.req.header('Cookie'))
-  const files = await getData(c.env.KV, 'files', [])
-  return c.render(downloadsPage(files, lang), { title: lang === 'zh' ? '文件下载 — Portal' : 'Downloads — Portal', lang })
-})
-
 // ==================== API: 公开数据 ====================
 app.get('/api/data', async (c) => {
   const profile = await getData(c.env.KV, 'profile', DEFAULT_PROFILE)

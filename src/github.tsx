@@ -22,40 +22,43 @@ export function githubPage(repos: any[], lang: Lang = 'zh') {
           {t('home', 'githubProjects', lang)}
         </h1>
         <p class="page-subtitle">
-          {repos.length} {t('home', 'repos', lang)} · {totalStars} <i class="fa-solid fa-star" style="color: var(--accent)"></i> · {totalForks} <i class="fa-solid fa-code-fork"></i>
+          {lang === 'zh'
+            ? `${repos.length} 个仓库 · ${totalStars} 星标 · ${totalForks} 分支`
+            : `${repos.length} repo${repos.length !== 1 ? 's' : ''} · ${totalStars} stars · ${totalForks} forks`
+          }
         </p>
       </div>
 
-      {repos.length === 0 ? (
+      {repos.length === 0 && (
         <div class="page-empty">
           <i class="fa-brands fa-github"></i>
           <p>{lang === 'zh' ? '暂无仓库' : 'No repositories yet'}</p>
         </div>
-      ) : (
-        <div class="repos-grid">
-          {repos.map((repo: any, i: number) => (
-            <a href={repo.url} target="_blank" rel="noopener" class="card card-repo" data-aos={i + 1} key={repo.id}>
-              <div class="card-inner">
-                <div class="repo-header">
-                  <i class="fa-solid fa-book-bookmark repo-icon"></i>
-                  <h3 class="repo-name">{repo.name}</h3>
-                </div>
-                <p class="repo-desc">{repo.description}</p>
-                <div class="repo-meta">
-                  {repo.language && (
-                    <span class="repo-lang">
-                      <span class="lang-dot" style={`background: ${langColors[repo.language] || '#888'}`}></span>
-                      {repo.language}
-                    </span>
-                  )}
-                  <span class="repo-stat"><i class="fa-solid fa-star"></i> {repo.stars}</span>
-                  <span class="repo-stat"><i class="fa-solid fa-code-fork"></i> {repo.forks}</span>
-                </div>
-              </div>
-            </a>
-          ))}
-        </div>
       )}
+
+      <div class="repos-grid">
+        {repos.map((repo: any, i: number) => (
+          <a href={repo.url} target="_blank" rel="noopener" class="card card-repo" data-aos={i + 1} key={repo.id}>
+            <div class="card-inner">
+              <div class="repo-header">
+                <i class="fa-solid fa-book-bookmark repo-icon"></i>
+                <h3 class="repo-name">{repo.name}</h3>
+              </div>
+              <p class="repo-desc">{repo.description}</p>
+              <div class="repo-meta">
+                {repo.language && (
+                  <span class="repo-lang">
+                    <span class="lang-dot" style={`background: ${langColors[repo.language] || '#888'}`}></span>
+                    {repo.language}
+                  </span>
+                )}
+                <span class="repo-stat"><i class="fa-solid fa-star"></i> {repo.stars}</span>
+                <span class="repo-stat"><i class="fa-solid fa-code-fork"></i> {repo.forks}</span>
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
     </main>
   )
 
