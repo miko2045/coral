@@ -30,17 +30,17 @@ export function downloadsPage(files: any[], lang: Lang = 'zh') {
 
   const content = (
     <main class="page-content">
-      <div class="page-hero">
-        <h1 class="page-title">
+      <div class="page-header-compact">
+        <h1 class="page-header-title">
           <i class="fa-solid fa-cloud-arrow-down"></i>
           {t('home', 'downloadsTitle', lang)}
         </h1>
-        <p class="page-subtitle">
+        <span class="page-header-count">
           {lang === 'zh'
             ? `${files.length} 个文件 · ${formatSize(totalSize)}`
             : `${files.length} file${files.length !== 1 ? 's' : ''} · ${formatSize(totalSize)}`
           }
-        </p>
+        </span>
       </div>
 
       {files.length === 0 && (

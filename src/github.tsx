@@ -16,17 +16,17 @@ export function githubPage(repos: any[], lang: Lang = 'zh') {
 
   const content = (
     <main class="page-content">
-      <div class="page-hero">
-        <h1 class="page-title">
+      <div class="page-header-compact">
+        <h1 class="page-header-title">
           <i class="fa-brands fa-github"></i>
           {t('home', 'githubProjects', lang)}
         </h1>
-        <p class="page-subtitle">
+        <span class="page-header-count">
           {lang === 'zh'
             ? `${repos.length} 个仓库 · ${totalStars} 星标 · ${totalForks} 分支`
             : `${repos.length} repo${repos.length !== 1 ? 's' : ''} · ${totalStars} stars · ${totalForks} forks`
           }
-        </p>
+        </span>
       </div>
 
       {repos.length === 0 && (

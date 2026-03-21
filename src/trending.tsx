@@ -58,38 +58,39 @@ export function trendingPage(
   const content = (
     <main class="page-content">
       {/* Page Title */}
-      <div class="trending-hero">
-        <h1 class="trending-title">
+      <div class="page-header-compact">
+        <h1 class="page-header-title">
           <i class="fa-brands fa-github"></i>
           {t('trending', 'title', lang)}
         </h1>
-        <p class="trending-subtitle">{t('trending', 'subtitle', lang)}</p>
-        <div class="trending-status-bar">
-          {cacheAge && (
-            <span class="trending-cache-hint">
-              <i class="fa-solid fa-clock"></i> {t('trending', 'dataFrom', lang)} {new Date(cacheAge).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}
-            </span>
-          )}
-          <span class={`trending-api-badge ${apiStatus === 'ok' || apiStatus === 'cached' ? 'api-ok' : apiStatus === 'fallback' ? 'api-warn' : 'api-err'}`}>
-            <i class={`fa-solid ${apiStatus === 'ok' || apiStatus === 'cached' ? 'fa-circle-check' : apiStatus === 'fallback' ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}`}></i>
-            {apiStatus === 'ok' ? 'Token API' : apiStatus === 'cached' ? t('trending', 'cached', lang) : apiStatus === 'fallback' ? t('trending', 'noToken', lang) : t('trending', 'limited', lang)}
-          </span>
-          <span class="trending-quota-hint">
-            <i class="fa-solid fa-gauge-high"></i> {t('trending', 'refreshQuota', lang)}: {rateLimitInfo.remaining}/30
-          </span>
-          <a href={`/trending?tab=${tab}${selectedLang ? '&lang_filter=' + selectedLang : ''}&refresh=1`}
-             class={`trending-refresh-btn ${!rateLimitInfo.allowed ? 'disabled' : ''}`}
-             title={!rateLimitInfo.allowed ? t('trending', 'limitReached', lang) : t('trending', 'forceRefresh', lang)}>
-            <i class="fa-solid fa-rotate"></i> {t('trending', 'refresh', lang)}
-          </a>
-        </div>
-        {!rateLimitInfo.allowed && (
-          <div class="trending-rate-warn">
-            <i class="fa-solid fa-shield-halved"></i>
-            {t('trending', 'rateLimitMsg', lang)}
-          </div>
-        )}
+        <span class="page-header-count">{t('trending', 'subtitle', lang)}</span>
       </div>
+
+      <div class="trending-status-bar-standalone">
+        {cacheAge && (
+          <span class="trending-cache-hint">
+            <i class="fa-solid fa-clock"></i> {t('trending', 'dataFrom', lang)} {new Date(cacheAge).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}
+          </span>
+        )}
+        <span class={`trending-api-badge ${apiStatus === 'ok' || apiStatus === 'cached' ? 'api-ok' : apiStatus === 'fallback' ? 'api-warn' : 'api-err'}`}>
+          <i class={`fa-solid ${apiStatus === 'ok' || apiStatus === 'cached' ? 'fa-circle-check' : apiStatus === 'fallback' ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}`}></i>
+          {apiStatus === 'ok' ? 'Token API' : apiStatus === 'cached' ? t('trending', 'cached', lang) : apiStatus === 'fallback' ? t('trending', 'noToken', lang) : t('trending', 'limited', lang)}
+        </span>
+        <span class="trending-quota-hint">
+          <i class="fa-solid fa-gauge-high"></i> {t('trending', 'refreshQuota', lang)}: {rateLimitInfo.remaining}/30
+        </span>
+        <a href={`/trending?tab=${tab}${selectedLang ? '&lang_filter=' + selectedLang : ''}&refresh=1`}
+           class={`trending-refresh-btn ${!rateLimitInfo.allowed ? 'disabled' : ''}`}
+           title={!rateLimitInfo.allowed ? t('trending', 'limitReached', lang) : t('trending', 'forceRefresh', lang)}>
+          <i class="fa-solid fa-rotate"></i> {t('trending', 'refresh', lang)}
+        </a>
+      </div>
+      {!rateLimitInfo.allowed && (
+        <div class="trending-rate-warn">
+          <i class="fa-solid fa-shield-halved"></i>
+          {t('trending', 'rateLimitMsg', lang)}
+        </div>
+      )}
 
       {/* Tab Switcher */}
       <div class="trending-tabs">

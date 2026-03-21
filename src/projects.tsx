@@ -6,14 +6,14 @@ import { pageLayout } from './layout'
 export function projectsPage(websites: any[], lang: Lang = 'zh') {
   const content = (
     <main class="page-content">
-      <div class="page-hero">
-        <h1 class="page-title">
+      <div class="page-header-compact">
+        <h1 class="page-header-title">
           <i class="fa-solid fa-cube"></i>
           {t('home', 'webProjects', lang)}
         </h1>
-        <p class="page-subtitle">
+        <span class="page-header-count">
           {lang === 'zh' ? `${websites.length} 个精选项目` : `${websites.length} curated project${websites.length !== 1 ? 's' : ''}`}
-        </p>
+        </span>
       </div>
 
       {websites.length === 0 && (
