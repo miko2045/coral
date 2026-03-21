@@ -1,5 +1,6 @@
 // ========================================
 // PORTAL — Frontend Interactions (with i18n)
+// Multi-page navigation support
 // ========================================
 
 (() => {
@@ -84,10 +85,9 @@
     });
   }
 
-  // === Nav indicator (sliding pill) ===
+  // === Nav indicator (sliding pill) — based on active class from server ===
   const navIndicator = document.getElementById('navIndicator');
   const navLinks = document.querySelectorAll('.header-nav .nav-link');
-  const sections = ['projects', 'github', 'downloads'];
 
   function moveIndicator(el) {
     if (!navIndicator || !el) return;
@@ -118,48 +118,14 @@
     navContainer.addEventListener('mouseleave', clearIndicator);
   }
 
-  // === Active section tracking on scroll ===
-  function updateActiveNav() {
-    const scrollY = window.scrollY + 150;
-    let current = '';
-
-    sections.forEach(id => {
-      const el = document.getElementById(id);
-      if (el && el.offsetTop <= scrollY) {
-        current = id;
-      }
-    });
-
-    navLinks.forEach(link => {
-      const href = link.getAttribute('href');
-      if (href === '#' + current) {
-        link.classList.add('active');
-      } else {
-        link.classList.remove('active');
-      }
-    });
-
-    // update indicator for active
-    const activeLink = document.querySelector('.nav-link.active');
-    if (activeLink && !navContainer?.matches(':hover')) {
-      moveIndicator(activeLink);
-    } else if (!activeLink && !navContainer?.matches(':hover')) {
-      if (navIndicator) navIndicator.classList.remove('visible');
-    }
+  // Initialize indicator on active link (set by server)
+  const initialActive = document.querySelector('.nav-link.active');
+  if (initialActive) {
+    // Small delay to ensure layout is ready
+    requestAnimationFrame(() => moveIndicator(initialActive));
   }
 
-  let scrollTicking = false;
-  window.addEventListener('scroll', () => {
-    if (!scrollTicking) {
-      requestAnimationFrame(() => {
-        updateActiveNav();
-        scrollTicking = false;
-      });
-      scrollTicking = true;
-    }
-  });
-
-  // === Live Clock (locale-aware) ===
+  // === Live Clock (locale-aware) — only on home page ===
   function updateTime() {
     const now = new Date();
     const h = String(now.getHours()).padStart(2, '0');
@@ -183,20 +149,10 @@
     }
   }
 
-  updateTime();
-  setInterval(updateTime, 1000);
-
-  // === Smooth Scroll for nav links ===
-  document.querySelectorAll('.nav-link[href^="#"]').forEach(link => {
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      const id = link.getAttribute('href');
-      const target = document.querySelector(id);
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    });
-  });
+  if (document.querySelector('.time-hour')) {
+    updateTime();
+    setInterval(updateTime, 1000);
+  }
 
   // === Card hover tilt effect ===
   document.querySelectorAll('.card').forEach(card => {
@@ -275,5 +231,20 @@
       }
     });
   });
+
+  // === Card entrance animation ===
+  const animCards = document.querySelectorAll('[data-aos]');
+  if (animCards.length > 0) {
+    const cardObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('aos-in');
+          cardObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.05, rootMargin: '0px 0px -30px 0px' });
+
+    animCards.forEach(card => cardObserver.observe(card));
+  }
 
 })();

@@ -1137,6 +1137,335 @@ a { text-decoration: none; color: inherit; }
   color: white;
 }
 
+/* === Card entrance animation === */
+[data-aos] {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+[data-aos].aos-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger delays */
+[data-aos="1"] { transition-delay: 0.02s; }
+[data-aos="2"] { transition-delay: 0.06s; }
+[data-aos="3"] { transition-delay: 0.10s; }
+[data-aos="4"] { transition-delay: 0.14s; }
+[data-aos="5"] { transition-delay: 0.18s; }
+[data-aos="6"] { transition-delay: 0.22s; }
+[data-aos="7"] { transition-delay: 0.26s; }
+[data-aos="8"] { transition-delay: 0.30s; }
+[data-aos="9"] { transition-delay: 0.34s; }
+[data-aos="10"] { transition-delay: 0.38s; }
+
+/* ======================================
+   SEPARATE PAGE STYLES (page-hero, etc.)
+   ====================================== */
+
+.page-content {
+  padding-top: 20px;
+}
+
+.page-hero {
+  text-align: center;
+  padding: 40px 0 28px;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--text-primary);
+}
+
+.page-title i {
+  font-size: 1.7rem;
+  opacity: 0.7;
+  color: var(--accent);
+}
+
+.page-subtitle {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+.page-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-tertiary);
+}
+
+.page-empty i {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.page-empty p {
+  font-size: 0.92rem;
+}
+
+/* Stats link style */
+.stat-link {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+  border-radius: var(--radius-xs);
+}
+
+.stat-link:hover {
+  background: var(--accent-soft);
+}
+
+.stat-link:hover .stat-num {
+  color: var(--accent);
+}
+
+/* Entry card (quick nav on home page) */
+.card-entry {
+  text-decoration: none;
+  color: inherit;
+  grid-column: span 1;
+}
+
+.card-entry .card-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.entry-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent, var(--accent));
+  border-radius: var(--radius-xs);
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.card-entry:hover .entry-icon {
+  background: var(--accent);
+  color: #fff;
+  transform: scale(1.08);
+}
+
+.entry-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.entry-text h3 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.entry-text p {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.card-entry .card-arrow {
+  color: var(--text-tertiary);
+  transition: all var(--transition);
+  font-size: 0.8rem;
+}
+
+.card-entry:hover .card-arrow {
+  color: var(--accent);
+  transform: translateX(3px);
+}
+
+@media (max-width: 768px) {
+  .page-hero {
+    padding: 24px 0 16px;
+  }
+
+  .page-title {
+    font-size: 1.4rem;
+    gap: 10px;
+  }
+
+  .page-title i {
+    font-size: 1.3rem;
+  }
+
+  .page-subtitle {
+    font-size: 0.82rem;
+  }
+}
+
+/* === Page Footer === */
+.page-footer {
+  text-align: center;
+  padding: 30px 0 50px;
+  color: var(--text-tertiary);
+  font-size: 0.82rem;
+}
+
+.page-footer a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.page-footer .footer-sub {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+/* === Projects Grid === */
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  padding-bottom: 30px;
+}
+
+/* === Repos Grid === */
+.repos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  padding-bottom: 30px;
+}
+
+/* === Downloads List === */
+.downloads-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 30px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* === Entry Cards (homepage quick nav) === */
+.card-entry {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.card-entry .card-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+}
+
+.entry-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.card-entry:hover .entry-icon {
+  background: var(--accent);
+  color: #fff;
+  transform: scale(1.08);
+}
+
+.entry-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.entry-text h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.entry-text p {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.card-entry .card-arrow {
+  color: var(--text-tertiary);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: all var(--transition);
+  font-size: 0.9rem;
+}
+
+.card-entry:hover .card-arrow {
+  opacity: 1;
+  transform: translateX(0);
+  color: var(--accent);
+}
+
+/* === Stat item as link === */
+.stat-item-link {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+  border-radius: var(--radius-xs);
+  padding: 4px;
+  margin: -4px;
+}
+
+.stat-item-link:hover {
+  background: var(--accent-soft);
+}
+
+.stat-item-link:hover .stat-num {
+  color: var(--accent);
+}
+
+@media (max-width: 768px) {
+  .projects-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .repos-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-entry .card-inner {
+    padding: 16px 18px;
+    gap: 12px;
+  }
+
+  .entry-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+}
+
 /* ======================================
    TRENDING PAGE STYLES
    ====================================== */

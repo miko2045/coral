@@ -51,7 +51,6 @@ export function trendingPage(
   const otherLang = lang === 'zh' ? 'en' : 'zh'
   const langLabel = lang === 'zh' ? 'EN' : '中'
 
-  // Popular language filters
   const popularLangs = [
     '', 'Python', 'JavaScript', 'TypeScript', 'Java', 'Go', 'Rust', 'C++', 'C', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'Shell'
   ]
@@ -68,7 +67,7 @@ export function trendingPage(
       </div>
 
       <div class="container">
-        {/* Header */}
+        {/* Header — 统一导航 */}
         <header class="header" id="siteHeader">
           <div class="header-left">
             <a href="/" class="logo-link">
@@ -77,8 +76,21 @@ export function trendingPage(
             </a>
           </div>
           <nav class="header-nav" id="headerNav">
-            <a href="/" class="nav-link"><i class="fa-solid fa-house"></i><span>{t('nav', 'home', lang)}</span></a>
-            <a href="/trending" class="nav-link active"><i class="fa-solid fa-fire-flame-curved"></i><span>{t('nav', 'trending', lang)}</span></a>
+            <a href="/" class="nav-link">
+              <i class="fa-solid fa-house"></i><span>{t('nav', 'home', lang)}</span>
+            </a>
+            <a href="/projects" class="nav-link">
+              <i class="fa-solid fa-cube"></i><span>{t('nav', 'projects', lang)}</span>
+            </a>
+            <a href="/github" class="nav-link">
+              <i class="fa-brands fa-github"></i><span>{t('nav', 'github', lang)}</span>
+            </a>
+            <a href="/downloads" class="nav-link">
+              <i class="fa-solid fa-cloud-arrow-down"></i><span>{t('nav', 'downloads', lang)}</span>
+            </a>
+            <a href="/trending" class="nav-link active">
+              <i class="fa-solid fa-fire-flame-curved"></i><span>{t('nav', 'trending', lang)}</span>
+            </a>
             <div class="nav-indicator visible" id="navIndicator"></div>
           </nav>
           <div class="header-actions">
