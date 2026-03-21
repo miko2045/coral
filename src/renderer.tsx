@@ -13,6 +13,7 @@ export const renderer = jsxRenderer(({ children, title }) => {
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css" rel="stylesheet" />
         <link href="/static/style.css" rel="stylesheet" />
+        <link href="/static/admin.css" rel="stylesheet" />
       </head>
       <body>
         {children}
