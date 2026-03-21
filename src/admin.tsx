@@ -55,6 +55,7 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
           <a href="#panel-websites" class="adm-nav-item" data-tab="websites"><i class="fa-solid fa-globe"></i> {t('admin', 'websitesTab', lang)}</a>
           <a href="#panel-repos" class="adm-nav-item" data-tab="repos"><i class="fa-brands fa-github"></i> {t('admin', 'githubTab', lang)}</a>
           <a href="#panel-files" class="adm-nav-item" data-tab="files"><i class="fa-solid fa-cloud-arrow-up"></i> {t('admin', 'filesTab', lang)}</a>
+          <a href="#panel-tokens" class="adm-nav-item" data-tab="tokens"><i class="fa-solid fa-key"></i> {t('admin', 'githubTokens', lang)}</a>
           <a href="#panel-settings" class="adm-nav-item" data-tab="settings"><i class="fa-solid fa-gear"></i> {t('admin', 'settingsTab', lang)}</a>
         </nav>
         <div class="adm-sidebar-footer">
@@ -194,6 +195,69 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* ===== GitHub Tokens ===== */}
+        <section id="panel-tokens" class="adm-panel">
+          <div class="adm-panel-header">
+            <h2><i class="fa-solid fa-key"></i> {t('admin', 'githubTokens', lang)}</h2>
+          </div>
+
+          {/* How it works */}
+          <div class="adm-card adm-token-how">
+            <h3 class="adm-card-title"><i class="fa-solid fa-lightbulb"></i> {t('admin', 'tokenHowItWorks', lang)}</h3>
+            <ul class="adm-token-how-list">
+              <li><i class="fa-solid fa-rotate"></i> {t('admin', 'tokenHowDesc1', lang)}</li>
+              <li><i class="fa-solid fa-shield-halved"></i> {t('admin', 'tokenHowDesc2', lang)}</li>
+              <li><i class="fa-solid fa-arrow-down"></i> {t('admin', 'tokenHowDesc3', lang)}</li>
+              <li><i class="fa-solid fa-gauge-high"></i> {t('admin', 'tokenHowDesc4', lang)}</li>
+            </ul>
+          </div>
+
+          {/* Token Status (loaded via JS) */}
+          <div class="adm-card" id="tokenStatusCard">
+            <h3 class="adm-card-title"><i class="fa-solid fa-chart-bar"></i> {t('admin', 'tokenStatus', lang)}</h3>
+            <div id="tokenStatusContent" class="adm-token-status-loading">
+              <i class="fa-solid fa-spinner fa-spin"></i> Loading...
+            </div>
+          </div>
+
+          {/* Token Pool Management */}
+          <div class="adm-card">
+            <h3 class="adm-card-title"><i class="fa-solid fa-database"></i> {t('admin', 'tokenPool', lang)}</h3>
+            <p class="adm-card-desc">{t('admin', 'githubTokensDesc', lang)}</p>
+            <div id="tokenListContainer" class="adm-token-list">
+              {/* Tokens will be rendered by JS */}
+            </div>
+            <div class="adm-token-add-row" style="margin-top: 12px">
+              <input type="text" id="newTokenInput" class="adm-token-input" placeholder={t('admin', 'tokenPlaceholder', lang)} />
+              <button class="adm-btn adm-btn-primary" id="addTokenBtn">
+                <i class="fa-solid fa-plus"></i> {t('admin', 'addToken', lang)}
+              </button>
+            </div>
+            <button class="adm-btn adm-btn-primary" id="saveTokensBtn" style="margin-top: 16px">
+              <i class="fa-solid fa-save"></i> {t('admin', 'saveTokens', lang)}
+            </button>
+          </div>
+
+          {/* Rate limit info */}
+          <div class="adm-card">
+            <h3 class="adm-card-title"><i class="fa-solid fa-gauge-high"></i> {t('admin', 'rateLimitConfig', lang)}</h3>
+            <div class="adm-status-grid">
+              <div class="adm-status-item">
+                <span class="adm-status-label">{t('admin', 'perIpLimit', lang)}</span>
+                <span class="adm-status-value">30 {t('admin', 'perIpLimit', lang).includes('次') ? '次' : 'times'}</span>
+              </div>
+              <div class="adm-status-item">
+                <span class="adm-status-label">{t('admin', 'cacheDuration', lang)}</span>
+                <span class="adm-status-value">1 {t('admin', 'hour', lang)}</span>
+              </div>
+              <div class="adm-status-item">
+                <span class="adm-status-label">{t('admin', 'tokenCooldownTime', lang)}</span>
+                <span class="adm-status-value">10 {t('admin', 'minutes', lang)}</span>
+              </div>
+            </div>
           </div>
         </section>
 

@@ -1574,6 +1574,104 @@ a { text-decoration: none; color: inherit; }
   color: var(--accent);
 }
 
+/* === Trending Status Bar === */
+.trending-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.trending-api-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+}
+
+.trending-api-badge.api-ok {
+  color: #22C55E;
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.trending-api-badge.api-warn {
+  color: #F59E0B;
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.trending-api-badge.api-err {
+  color: #EF4444;
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.trending-quota-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  padding: 3px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-weight: 500;
+}
+
+.trending-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: 99px;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  transition: all var(--transition);
+  border: none;
+  cursor: pointer;
+}
+
+.trending-refresh-btn:hover {
+  opacity: 0.85;
+  transform: scale(1.03);
+}
+
+.trending-refresh-btn.disabled {
+  background: var(--text-tertiary);
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.trending-rate-warn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 20px;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: var(--radius-xs);
+  color: #EF4444;
+  font-size: 0.8rem;
+  font-weight: 500;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /* === Trending Responsive === */
 @media (max-width: 768px) {
   .trending-hero {
@@ -1641,5 +1739,14 @@ a { text-decoration: none; color: inherit; }
 
   .trending-repo-arrow {
     display: none;
+  }
+
+  .trending-status-bar {
+    gap: 6px;
+  }
+
+  .trending-rate-warn {
+    font-size: 0.72rem;
+    padding: 8px 14px;
   }
 }

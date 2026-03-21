@@ -448,4 +448,272 @@
     } catch (e) { toast(e.message, 'error'); }
   });
 
+  // =============================================
+  // === GitHub Token Pool Management ===
+  // =============================================
+  const tokenI = {
+    active: lang === 'zh' ? '可用' : 'Active',
+    cooldown: lang === 'zh' ? '冷却中' : 'Cooldown',
+    cooldownUntil: lang === 'zh' ? '冷却至' : 'Until',
+    noTokens: lang === 'zh' ? '未配置任何 Token — 使用公开 API (60次/小时)' : 'No tokens configured — using public API (60 req/hour)',
+    tokenCount: lang === 'zh' ? '个 Token' : ' token(s)',
+    activeTokens: lang === 'zh' ? '可用' : 'active',
+    tokensSaved: lang === 'zh' ? 'Token 配置已保存!' : 'Token config saved!',
+    remove: lang === 'zh' ? '移除' : 'Remove',
+  };
+
+  let tokenList = []; // Current tokens in the editor
+
+  // Load token status on panel show
+  async function loadTokenStatus() {
+    const container = document.getElementById('tokenStatusContent');
+    if (!container) return;
+
+    try {
+      const resp = await fetch('/admin/api/github-tokens');
+      if (!resp.ok) throw new Error('Failed to load');
+      const data = await resp.json();
+
+      if (data.totalTokens === 0) {
+        container.innerHTML = `
+          <div class="adm-token-no-tokens">
+            <i class="fa-solid fa-info-circle"></i>
+            ${tokenI.noTokens}
+          </div>`;
+        // Init empty token list
+        tokenList = [];
+        renderTokenList();
+        return;
+      }
+
+      // Summary + grid
+      let html = `
+        <div class="adm-token-summary">
+          <span><span class="summary-num">${data.totalTokens}</span> ${tokenI.tokenCount}</span>
+          <span style="color:#22C55E;font-weight:600">${data.activeTokens} ${tokenI.activeTokens}</span>
+          <span style="color:#F59E0B;font-weight:600">${data.totalTokens - data.activeTokens} ${tokenI.cooldown}</span>
+        </div>
+        <div class="adm-token-status-grid">`;
+
+      data.tokens.forEach((t, idx) => {
+        const stateClass = t.active ? 'active' : 'cooldown';
+        const stateText = t.active ? tokenI.active : `${tokenI.cooldown}`;
+        const cdText = t.cooldownUntil ? `<br><small>${tokenI.cooldownUntil} ${new Date(t.cooldownUntil).toLocaleTimeString()}</small>` : '';
+        html += `
+          <div class="adm-token-status-card">
+            <span class="token-index">${idx + 1}</span>
+            <div class="token-info">
+              <div class="token-masked">${t.masked}</div>
+              <div class="token-state ${stateClass}">${stateText}${cdText}</div>
+            </div>
+            <span class="adm-token-status-dot ${stateClass}"></span>
+          </div>`;
+      });
+
+      html += '</div>';
+      container.innerHTML = html;
+
+      // Populate token list for editing (only masked values; we need full values)
+      // We load full tokens from the token list API
+      tokenList = data.tokens.map(t => t.masked);
+
+    } catch (e) {
+      container.innerHTML = `<p style="color:var(--text-tertiary);text-align:center;padding:16px">Error loading status</p>`;
+    }
+  }
+
+  // Load actual token values for editing
+  async function loadTokensForEditing() {
+    try {
+      const resp = await fetch('/admin/api/github-tokens');
+      if (!resp.ok) return;
+      const data = await resp.json();
+      // We can't get full tokens from the status API (they're masked)
+      // So we only allow adding new tokens, not editing existing ones
+      // Show masked list count
+      tokenList = [];
+      if (data.totalTokens > 0) {
+        // Show existing count as placeholder
+        renderTokenListWithMasked(data.tokens);
+      } else {
+        renderTokenList();
+      }
+    } catch (e) {
+      // silently fail
+    }
+  }
+
+  function renderTokenListWithMasked(tokens) {
+    const container = document.getElementById('tokenListContainer');
+    if (!container) return;
+
+    if (tokens.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    container.innerHTML = tokens.map((t, idx) => `
+      <div class="adm-token-item" data-idx="${idx}">
+        <span class="token-num">${idx + 1}</span>
+        <input type="text" value="${t.masked}" readonly style="opacity:0.6;cursor:default" title="Existing token (masked)" />
+        <button class="adm-btn-icon adm-btn-icon-danger remove-token-btn" title="${tokenI.remove}" data-idx="${idx}">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
+    `).join('');
+
+    // Bind remove buttons
+    container.querySelectorAll('.remove-token-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx);
+        // Mark for removal
+        btn.closest('.adm-token-item').style.display = 'none';
+        btn.closest('.adm-token-item').dataset.removed = 'true';
+      });
+    });
+  }
+
+  function renderTokenList() {
+    const container = document.getElementById('tokenListContainer');
+    if (!container) return;
+    // Clear any items with data-new attribute (newly added tokens)
+    // Keep masked ones
+  }
+
+  // Add token button
+  const addTokenBtn = document.getElementById('addTokenBtn');
+  const newTokenInput = document.getElementById('newTokenInput');
+
+  if (addTokenBtn && newTokenInput) {
+    addTokenBtn.addEventListener('click', () => {
+      const val = newTokenInput.value.trim();
+      if (!val) return;
+
+      const container = document.getElementById('tokenListContainer');
+      const idx = container.children.length;
+      const item = document.createElement('div');
+      item.className = 'adm-token-item';
+      item.dataset.newToken = val;
+      item.innerHTML = `
+        <span class="token-num">+</span>
+        <input type="text" value="${val.slice(0, 8)}***${val.slice(-4)}" readonly style="color:#22C55E" />
+        <button class="adm-btn-icon adm-btn-icon-danger remove-new-token-btn" title="${tokenI.remove}">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      `;
+      item.querySelector('.remove-new-token-btn').addEventListener('click', () => item.remove());
+      container.appendChild(item);
+      newTokenInput.value = '';
+      newTokenInput.focus();
+    });
+
+    // Also allow Enter key
+    newTokenInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addTokenBtn.click();
+      }
+    });
+  }
+
+  // Save tokens button
+  const saveTokensBtn = document.getElementById('saveTokensBtn');
+  if (saveTokensBtn) {
+    saveTokensBtn.addEventListener('click', async () => {
+      const container = document.getElementById('tokenListContainer');
+      const tokens = [];
+
+      // Collect new tokens (ones with data-new-token)
+      container.querySelectorAll('.adm-token-item').forEach(item => {
+        if (item.dataset.removed === 'true') return; // Skip removed
+        if (item.dataset.newToken) {
+          tokens.push(item.dataset.newToken);
+        }
+        // Note: existing masked tokens can't be re-sent, so we tell user 
+        // that saving replaces all tokens with the new list
+      });
+
+      // If there are masked (existing) items that aren't removed, we need to
+      // tell the backend to keep them. Since we can't read full token values
+      // from the client, we use a different approach: send only new tokens
+      // and let backend merge, OR send all tokens (replace mode).
+      // For simplicity, we use replace mode and warn the user.
+      
+      // Gather all non-removed existing masked tokens
+      let hasExistingNotRemoved = false;
+      container.querySelectorAll('.adm-token-item').forEach(item => {
+        if (item.dataset.removed === 'true') return;
+        if (!item.dataset.newToken) {
+          hasExistingNotRemoved = true;
+        }
+      });
+
+      try {
+        if (hasExistingNotRemoved && tokens.length > 0) {
+          // We're adding new tokens to existing ones
+          // Use the append endpoint
+          const resp = await fetch('/admin/api/github-tokens/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tokens }),
+          });
+          if (!resp.ok) {
+            const err = await resp.json();
+            throw new Error(err.error || 'Failed');
+          }
+        } else if (hasExistingNotRemoved && tokens.length === 0) {
+          // Check if any existing tokens were removed
+          let anyRemoved = false;
+          container.querySelectorAll('.adm-token-item').forEach(item => {
+            if (item.dataset.removed === 'true' && !item.dataset.newToken) anyRemoved = true;
+          });
+          if (anyRemoved) {
+            // Need to remove tokens - use remove endpoint
+            const removedIndices = [];
+            container.querySelectorAll('.adm-token-item').forEach(item => {
+              if (item.dataset.removed === 'true' && !item.dataset.newToken) {
+                removedIndices.push(parseInt(item.dataset.idx));
+              }
+            });
+            const resp = await fetch('/admin/api/github-tokens/remove', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ indices: removedIndices }),
+            });
+            if (!resp.ok) {
+              const err = await resp.json();
+              throw new Error(err.error || 'Failed');
+            }
+          } else {
+            // Nothing changed
+            toast(tokenI.tokensSaved);
+            return;
+          }
+        } else {
+          // No existing tokens, only new tokens (or empty)
+          await api('/admin/api/github-tokens', { tokens });
+        }
+
+        toast(tokenI.tokensSaved);
+        // Reload status
+        setTimeout(async () => {
+          await loadTokenStatus();
+          await loadTokensForEditing();
+        }, 500);
+      } catch (e) {
+        toast(e.message, 'error');
+      }
+    });
+  }
+
+  // Load tokens when switching to tokens tab
+  document.querySelectorAll('.adm-nav-item[data-tab]').forEach(item => {
+    item.addEventListener('click', () => {
+      if (item.dataset.tab === 'tokens') {
+        loadTokenStatus();
+        loadTokensForEditing();
+      }
+    });
+  });
+
 })();

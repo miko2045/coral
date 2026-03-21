@@ -44,7 +44,9 @@ export function trendingPage(
   lang: Lang = 'zh',
   tab: string = 'hot',
   selectedLang: string = '',
-  cacheAge: string = ''
+  cacheAge: string = '',
+  apiStatus: string = 'cached',
+  rateLimitInfo: { allowed: boolean; remaining: number; resetAt: number } = { allowed: true, remaining: 30, resetAt: 0 }
 ) {
   const otherLang = lang === 'zh' ? 'en' : 'zh'
   const langLabel = lang === 'zh' ? 'EN' : '中'
@@ -104,10 +106,30 @@ export function trendingPage(
             {t('trending', 'title', lang)}
           </h1>
           <p class="trending-subtitle">{t('trending', 'subtitle', lang)}</p>
-          {cacheAge && (
-            <span class="trending-cache-hint">
-              <i class="fa-solid fa-clock"></i> {t('trending', 'dataFrom', lang)} {cacheAge}
+          <div class="trending-status-bar">
+            {cacheAge && (
+              <span class="trending-cache-hint">
+                <i class="fa-solid fa-clock"></i> {t('trending', 'dataFrom', lang)} {new Date(cacheAge).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}
+              </span>
+            )}
+            <span class={`trending-api-badge ${apiStatus === 'ok' || apiStatus === 'cached' ? 'api-ok' : apiStatus === 'fallback' ? 'api-warn' : 'api-err'}`}>
+              <i class={`fa-solid ${apiStatus === 'ok' || apiStatus === 'cached' ? 'fa-circle-check' : apiStatus === 'fallback' ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}`}></i>
+              {apiStatus === 'ok' ? 'Token API' : apiStatus === 'cached' ? t('trending', 'cached', lang) : apiStatus === 'fallback' ? t('trending', 'noToken', lang) : t('trending', 'limited', lang)}
             </span>
+            <span class="trending-quota-hint">
+              <i class="fa-solid fa-gauge-high"></i> {t('trending', 'refreshQuota', lang)}: {rateLimitInfo.remaining}/30
+            </span>
+            <a href={`/trending?tab=${tab}${selectedLang ? '&lang_filter=' + selectedLang : ''}&refresh=1`}
+               class={`trending-refresh-btn ${!rateLimitInfo.allowed ? 'disabled' : ''}`}
+               title={!rateLimitInfo.allowed ? t('trending', 'limitReached', lang) : t('trending', 'forceRefresh', lang)}>
+              <i class="fa-solid fa-rotate"></i> {t('trending', 'refresh', lang)}
+            </a>
+          </div>
+          {!rateLimitInfo.allowed && (
+            <div class="trending-rate-warn">
+              <i class="fa-solid fa-shield-halved"></i>
+              {t('trending', 'rateLimitMsg', lang)}
+            </div>
           )}
         </div>
 
