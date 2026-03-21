@@ -59,6 +59,7 @@ export function homePage(profile: any, websites: any[], repos: any[], files: any
             <a href="#projects" class="nav-link"><i class="fa-solid fa-cube"></i><span>{t('nav', 'projects', lang)}</span></a>
             <a href="#github" class="nav-link"><i class="fa-brands fa-github"></i><span>{t('nav', 'github', lang)}</span></a>
             <a href="#downloads" class="nav-link"><i class="fa-solid fa-cloud-arrow-down"></i><span>{t('nav', 'downloads', lang)}</span></a>
+            <a href="/trending" class="nav-link"><i class="fa-solid fa-fire-flame-curved"></i><span>{t('nav', 'trending', lang)}</span></a>
             <div class="nav-indicator" id="navIndicator"></div>
           </nav>
           <div class="header-actions">

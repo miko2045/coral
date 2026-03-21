@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { renderer } from './renderer'
 import { adminPage } from './admin'
 import { homePage } from './home'
+import { trendingPage } from './trending'
 import { parseLang, t } from './i18n'
 import type { Lang } from './i18n'
 
@@ -94,6 +95,117 @@ app.get('/api/data', async (c) => {
 })
 
 // ==================== API: 文件下载 ====================
+
+// ==================== GitHub Trending API ====================
+const CACHE_TTL = 3600 // 1 hour
+
+async function fetchGitHubSearch(q: string, sort: string, order: string, perPage: number = 30): Promise<any[]> {
+  const params = new URLSearchParams({ q, sort, order, per_page: String(perPage) })
+  const url = `https://api.github.com/search/repositories?${params.toString()}`
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'portal-trending-app',
+      },
+    })
+    if (!resp.ok) return []
+    const data = await resp.json() as any
+    return data.items || []
+  } catch {
+    return []
+  }
+}
+
+function getDateStr(daysAgo: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - daysAgo)
+  return d.toISOString().split('T')[0]
+}
+
+async function getHotRepos(langFilter: string): Promise<any[]> {
+  const langQ = langFilter ? ` language:${langFilter}` : ''
+  const q = `stars:>5000${langQ}`
+  return fetchGitHubSearch(q, 'stars', 'desc', 30)
+}
+
+async function getRisingRepos(langFilter: string): Promise<any[]> {
+  const weekAgo = getDateStr(7)
+  const langQ = langFilter ? ` language:${langFilter}` : ''
+  const q = `created:>${weekAgo}${langQ}`
+  const repos = await fetchGitHubSearch(q, 'stars', 'desc', 30)
+  return repos.map(r => ({
+    ...r,
+    _starsToday: r.stargazers_count,
+  }))
+}
+
+async function getCachedTrending(kv: KVNamespace, tab: string, langFilter: string) {
+  const cacheKey = `trending:${tab}:${langFilter || 'all'}`
+  const cached = await kv.get(cacheKey)
+  if (cached) {
+    try {
+      const data = JSON.parse(cached)
+      return { repos: data.repos, cacheAge: data.timestamp }
+    } catch { /* ignore */ }
+  }
+
+  const repos = tab === 'rising'
+    ? await getRisingRepos(langFilter)
+    : await getHotRepos(langFilter)
+
+  const payload = { repos, timestamp: new Date().toISOString() }
+  await kv.put(cacheKey, JSON.stringify(payload), { expirationTtl: CACHE_TTL }).catch(() => {})
+  return { repos, cacheAge: payload.timestamp }
+}
+
+app.get('/trending', async (c) => {
+  const lang = parseLang(c.req.header('Cookie'))
+  const tab = c.req.query('tab') || 'hot'
+  const langFilter = c.req.query('lang_filter') || ''
+
+  let hotRepos: any[] = []
+  let risingRepos: any[] = []
+  let cacheAge = ''
+
+  try {
+    if (tab === 'rising') {
+      const result = await getCachedTrending(c.env.KV, 'rising', langFilter)
+      risingRepos = result.repos
+      cacheAge = result.cacheAge
+      // Also get hot count for tab badge
+      const hotResult = await getCachedTrending(c.env.KV, 'hot', langFilter)
+      hotRepos = hotResult.repos
+    } else {
+      const result = await getCachedTrending(c.env.KV, 'hot', langFilter)
+      hotRepos = result.repos
+      cacheAge = result.cacheAge
+      // Also get rising count for tab badge
+      const risingResult = await getCachedTrending(c.env.KV, 'rising', langFilter)
+      risingRepos = risingResult.repos
+    }
+  } catch {
+    // On error, show empty
+  }
+
+  const title = lang === 'zh' ? 'GitHub 排行榜 — Portal' : 'GitHub Trending — Portal'
+  return c.render(
+    trendingPage(hotRepos, risingRepos, lang, tab, langFilter, cacheAge),
+    { title, lang }
+  )
+})
+
+app.get('/api/trending', async (c) => {
+  const tab = c.req.query('tab') || 'hot'
+  const langFilter = c.req.query('lang_filter') || ''
+  try {
+    const result = await getCachedTrending(c.env.KV, tab, langFilter)
+    return c.json({ repos: result.repos, cacheAge: result.cacheAge })
+  } catch {
+    return c.json({ repos: [], cacheAge: '' })
+  }
+})
+
 app.get('/api/download/:key', async (c) => {
   const key = c.req.param('key')
   const files: any[] = await getData(c.env.KV, 'files', [])

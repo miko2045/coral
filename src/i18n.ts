@@ -8,6 +8,8 @@ export const translations = {
     projects: { zh: '项目', en: 'Projects' },
     github: { zh: 'GitHub', en: 'GitHub' },
     downloads: { zh: '下载', en: 'Downloads' },
+    trending: { zh: '排行榜', en: 'Trending' },
+    home: { zh: '首页', en: 'Home' },
   },
 
   // === Home Page ===
@@ -154,6 +156,21 @@ export const translations = {
     deleteFile: { zh: '确定删除此文件?', en: 'Delete this file?' },
     preparing: { zh: '准备中...', en: 'Preparing...' },
     ready: { zh: '完成!', en: 'Ready!' },
+  },
+
+  // === Trending Page ===
+  trending: {
+    title: { zh: 'GitHub 项目排行榜', en: 'GitHub Trending' },
+    subtitle: { zh: '发现全球最热门和增长最快的开源项目', en: 'Discover the most popular and fastest-growing open source projects worldwide' },
+    hotTab: { zh: '热门榜', en: 'Most Stars' },
+    risingTab: { zh: '飙升榜', en: 'Rising' },
+    language: { zh: '语言', en: 'Language' },
+    allLangs: { zh: '全部', en: 'All' },
+    noResults: { zh: '未找到符合条件的项目', en: 'No projects found matching the criteria' },
+    noDesc: { zh: '暂无描述', en: 'No description' },
+    dataFrom: { zh: '数据更新于', en: 'Data updated' },
+    poweredBy: { zh: '数据来源: GitHub Search API · 每小时更新', en: 'Powered by GitHub Search API · Updated hourly' },
+    backHome: { zh: '返回首页', en: 'Back to Home' },
   },
 
   // Misc
