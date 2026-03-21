@@ -5,7 +5,6 @@ import { homePage } from './home'
 
 type Bindings = {
   KV: KVNamespace
-  R2: R2Bucket
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -43,11 +42,17 @@ const DEFAULT_REPOS = [
   { id: '4', name: 'pixel-weather', description: '像素风格的天气小组件，可嵌入任何网页', language: 'JavaScript', stars: 67, forks: 8, url: 'https://github.com' },
 ]
 
+const DEFAULT_SETTINGS = {
+  storageMode: 'kv', // kv | external
+  externalUploadUrl: '',
+  externalDownloadPrefix: '',
+  maxFileSize: 25, // MB, KV 单值上限 25MB
+}
+
 // ==================== 辅助函数 ====================
 async function getData(kv: KVNamespace, key: string, fallback: any) {
   const val = await kv.get(key)
   if (val) return JSON.parse(val)
-  // 第一次访问时写入默认数据
   await kv.put(key, JSON.stringify(fallback))
   return fallback
 }
@@ -73,18 +78,27 @@ app.get('/api/data', async (c) => {
 // ==================== API: 文件下载 ====================
 app.get('/api/download/:key', async (c) => {
   const key = c.req.param('key')
-  // 从 KV 获取文件元信息
   const files: any[] = await getData(c.env.KV, 'files', [])
   const fileMeta = files.find((f: any) => f.key === key)
-  
-  const obj = await c.env.R2.get(`files/${key}`)
-  if (!obj) {
-    return c.json({ error: 'File not found' }, 404)
+  if (!fileMeta) return c.json({ error: 'File not found' }, 404)
+
+  const settings = await getData(c.env.KV, 'settings', DEFAULT_SETTINGS)
+
+  if (settings.storageMode === 'external' && fileMeta.externalUrl) {
+    // 外链模式直接 302 跳转
+    return c.redirect(fileMeta.externalUrl)
   }
+
+  // KV 存储模式：从 KV 取 base64 数据
+  const b64 = await c.env.KV.get(`file:${key}`)
+  if (!b64) return c.json({ error: 'File data not found' }, 404)
+
+  const binary = Uint8Array.from(atob(b64), ch => ch.charCodeAt(0))
   const headers = new Headers()
-  headers.set('Content-Type', obj.httpMetadata?.contentType || 'application/octet-stream')
-  headers.set('Content-Disposition', `attachment; filename="${fileMeta?.originalName || key}"`)
-  return new Response(obj.body, { headers })
+  headers.set('Content-Type', fileMeta.type || 'application/octet-stream')
+  headers.set('Content-Disposition', `attachment; filename="${encodeURIComponent(fileMeta.originalName || key)}"`)
+  headers.set('Content-Length', String(binary.length))
+  return new Response(binary, { headers })
 })
 
 // ==================== 后台认证 ====================
@@ -92,12 +106,11 @@ async function checkAuth(c: any): Promise<boolean> {
   const cookie = c.req.header('Cookie') || ''
   const match = cookie.match(/portal_session=([^;]+)/)
   if (!match) return false
-  const session = match[1]
-  const stored = await c.env.KV.get('session:' + session)
+  const stored = await c.env.KV.get('session:' + match[1])
   return !!stored
 }
 
-// ==================== 后台登录页 ====================
+// ==================== 后台登录 ====================
 app.get('/admin/login', (c) => {
   return c.render(adminPage('login', {}), { title: 'Admin Login' })
 })
@@ -105,7 +118,6 @@ app.get('/admin/login', (c) => {
 app.post('/admin/login', async (c) => {
   const body = await c.req.parseBody()
   const password = body.password as string
-  // 从 KV 获取密码，默认 admin123
   let storedPw = await c.env.KV.get('admin_password')
   if (!storedPw) {
     await c.env.KV.put('admin_password', 'admin123')
@@ -114,45 +126,36 @@ app.post('/admin/login', async (c) => {
   if (password !== storedPw) {
     return c.render(adminPage('login', { error: '密码错误' }), { title: 'Admin Login' })
   }
-  // 创建 session
   const sessionId = crypto.randomUUID()
   await c.env.KV.put('session:' + sessionId, '1', { expirationTtl: 86400 })
   return new Response(null, {
     status: 302,
-    headers: {
-      'Location': '/admin',
-      'Set-Cookie': `portal_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`,
-    }
+    headers: { 'Location': '/admin', 'Set-Cookie': `portal_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400` }
   })
 })
 
-// 后台登录后重定向
 app.get('/admin/logout', async (c) => {
   const cookie = c.req.header('Cookie') || ''
   const match = cookie.match(/portal_session=([^;]+)/)
   if (match) await c.env.KV.delete('session:' + match[1])
   return new Response(null, {
     status: 302,
-    headers: {
-      'Location': '/admin/login',
-      'Set-Cookie': 'portal_session=; Path=/; Max-Age=0',
-    }
+    headers: { 'Location': '/admin/login', 'Set-Cookie': 'portal_session=; Path=/; Max-Age=0' }
   })
 })
 
-// ==================== 后台管理面板 ====================
+// ==================== 后台面板 ====================
 app.get('/admin', async (c) => {
   if (!await checkAuth(c)) return c.redirect('/admin/login')
   const profile = await getData(c.env.KV, 'profile', DEFAULT_PROFILE)
   const websites = await getData(c.env.KV, 'websites', DEFAULT_WEBSITES)
   const repos = await getData(c.env.KV, 'repos', DEFAULT_REPOS)
   const files = await getData(c.env.KV, 'files', [])
-  return c.render(adminPage('dashboard', { profile, websites, repos, files }), { title: 'Admin Panel' })
+  const settings = await getData(c.env.KV, 'settings', DEFAULT_SETTINGS)
+  return c.render(adminPage('dashboard', { profile, websites, repos, files, settings }), { title: 'Admin Panel' })
 })
 
 // ==================== 后台 API ====================
-
-// 更新个人信息
 app.post('/admin/api/profile', async (c) => {
   if (!await checkAuth(c)) return c.json({ error: 'Unauthorized' }, 401)
   const data = await c.req.json()
@@ -160,7 +163,6 @@ app.post('/admin/api/profile', async (c) => {
   return c.json({ ok: true })
 })
 
-// 网站项目 CRUD
 app.post('/admin/api/websites', async (c) => {
   if (!await checkAuth(c)) return c.json({ error: 'Unauthorized' }, 401)
   const data = await c.req.json()
@@ -168,7 +170,6 @@ app.post('/admin/api/websites', async (c) => {
   return c.json({ ok: true })
 })
 
-// GitHub 项目 CRUD
 app.post('/admin/api/repos', async (c) => {
   if (!await checkAuth(c)) return c.json({ error: 'Unauthorized' }, 401)
   const data = await c.req.json()
@@ -176,21 +177,31 @@ app.post('/admin/api/repos', async (c) => {
   return c.json({ ok: true })
 })
 
-// 上传文件
+// 上传文件 — KV 存 base64
 app.post('/admin/api/upload', async (c) => {
   if (!await checkAuth(c)) return c.json({ error: 'Unauthorized' }, 401)
   const formData = await c.req.formData()
   const file = formData.get('file') as File
-  const displayName = formData.get('displayName') as string || file.name
-  
+  const displayName = (formData.get('displayName') as string) || file.name
   if (!file) return c.json({ error: 'No file' }, 400)
 
-  const key = Date.now() + '-' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  await c.env.R2.put(`files/${key}`, file.stream(), {
-    httpMetadata: { contentType: file.type },
-  })
+  const settings = await getData(c.env.KV, 'settings', DEFAULT_SETTINGS)
+  const maxBytes = (settings.maxFileSize || 25) * 1024 * 1024
+  if (file.size > maxBytes) {
+    return c.json({ error: `File too large. Max ${settings.maxFileSize}MB` }, 400)
+  }
 
-  // 更新文件列表元信息
+  const key = Date.now() + '-' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+
+  // 读取文件为 base64 存入 KV
+  const buf = await file.arrayBuffer()
+  const bytes = new Uint8Array(buf)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  const b64 = btoa(binary)
+  await c.env.KV.put(`file:${key}`, b64)
+
+  // 更新文件列表
   const files: any[] = await getData(c.env.KV, 'files', [])
   files.push({
     key,
@@ -204,14 +215,45 @@ app.post('/admin/api/upload', async (c) => {
   return c.json({ ok: true, key })
 })
 
+// 添加外链文件（外部存储模式）
+app.post('/admin/api/add-link', async (c) => {
+  if (!await checkAuth(c)) return c.json({ error: 'Unauthorized' }, 401)
+  const { displayName, originalName, externalUrl, size, type } = await c.req.json()
+  if (!displayName || !externalUrl) return c.json({ error: 'Missing fields' }, 400)
+
+  const key = Date.now() + '-link-' + (originalName || 'file').replace(/[^a-zA-Z0-9._-]/g, '_')
+  const files: any[] = await getData(c.env.KV, 'files', [])
+  files.push({
+    key,
+    displayName,
+    originalName: originalName || displayName,
+    externalUrl,
+    size: size || 0,
+    type: type || 'application/octet-stream',
+    uploadedAt: new Date().toISOString(),
+    isExternal: true,
+  })
+  await c.env.KV.put('files', JSON.stringify(files))
+  return c.json({ ok: true, key })
+})
+
 // 删除文件
 app.post('/admin/api/delete-file', async (c) => {
   if (!await checkAuth(c)) return c.json({ error: 'Unauthorized' }, 401)
   const { key } = await c.req.json()
-  await c.env.R2.delete(`files/${key}`)
+  // 尝试删除 KV 中的文件数据
+  await c.env.KV.delete(`file:${key}`)
   const files: any[] = await getData(c.env.KV, 'files', [])
   const newFiles = files.filter((f: any) => f.key !== key)
   await c.env.KV.put('files', JSON.stringify(newFiles))
+  return c.json({ ok: true })
+})
+
+// 保存设置
+app.post('/admin/api/settings', async (c) => {
+  if (!await checkAuth(c)) return c.json({ error: 'Unauthorized' }, 401)
+  const data = await c.req.json()
+  await c.env.KV.put('settings', JSON.stringify(data))
   return c.json({ ok: true })
 })
 

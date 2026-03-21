@@ -31,7 +31,8 @@ function loginView({ error }: { error?: string }) {
   )
 }
 
-function dashboardView({ profile, websites, repos, files }: any) {
+function dashboardView({ profile, websites, repos, files, settings }: any) {
+  const st = settings || { storageMode: 'kv', maxFileSize: 25 }
   return (
     <div class="adm">
       {/* Sidebar */}
@@ -55,7 +56,7 @@ function dashboardView({ profile, websites, repos, files }: any) {
 
       {/* Main */}
       <main class="adm-main">
-        {/* ===== Profile Panel ===== */}
+        {/* ===== Profile ===== */}
         <section id="panel-profile" class="adm-panel active">
           <div class="adm-panel-header">
             <h2><i class="fa-solid fa-user"></i> Personal Info</h2>
@@ -79,7 +80,7 @@ function dashboardView({ profile, websites, repos, files }: any) {
           </div>
         </section>
 
-        {/* ===== Websites Panel ===== */}
+        {/* ===== Websites ===== */}
         <section id="panel-websites" class="adm-panel">
           <div class="adm-panel-header">
             <h2><i class="fa-solid fa-globe"></i> Web Projects</h2>
@@ -89,10 +90,7 @@ function dashboardView({ profile, websites, repos, files }: any) {
             {websites.map((w: any) => (
               <div class="adm-item" data-id={w.id} key={w.id}>
                 <div class="adm-item-icon" style={`color: ${w.color || '#E8A838'}`}><i class={w.icon || 'fa-solid fa-globe'}></i></div>
-                <div class="adm-item-body">
-                  <strong>{w.title}</strong>
-                  <span class="adm-item-sub">{w.description}</span>
-                </div>
+                <div class="adm-item-body"><strong>{w.title}</strong><span class="adm-item-sub">{w.description}</span></div>
                 <div class="adm-item-actions">
                   <button class="adm-btn-icon edit-website" title="Edit"><i class="fa-solid fa-pen"></i></button>
                   <button class="adm-btn-icon adm-btn-icon-danger delete-website" title="Delete"><i class="fa-solid fa-trash"></i></button>
@@ -102,7 +100,7 @@ function dashboardView({ profile, websites, repos, files }: any) {
           </div>
         </section>
 
-        {/* ===== Repos Panel ===== */}
+        {/* ===== Repos ===== */}
         <section id="panel-repos" class="adm-panel">
           <div class="adm-panel-header">
             <h2><i class="fa-brands fa-github"></i> GitHub Projects</h2>
@@ -112,10 +110,7 @@ function dashboardView({ profile, websites, repos, files }: any) {
             {repos.map((r: any) => (
               <div class="adm-item" data-id={r.id} key={r.id}>
                 <div class="adm-item-icon"><i class="fa-solid fa-book-bookmark"></i></div>
-                <div class="adm-item-body">
-                  <strong>{r.name}</strong>
-                  <span class="adm-item-sub">{r.description}</span>
-                </div>
+                <div class="adm-item-body"><strong>{r.name}</strong><span class="adm-item-sub">{r.description}</span></div>
                 <div class="adm-item-actions">
                   <button class="adm-btn-icon edit-repo" title="Edit"><i class="fa-solid fa-pen"></i></button>
                   <button class="adm-btn-icon adm-btn-icon-danger delete-repo" title="Delete"><i class="fa-solid fa-trash"></i></button>
@@ -125,33 +120,52 @@ function dashboardView({ profile, websites, repos, files }: any) {
           </div>
         </section>
 
-        {/* ===== Files Panel ===== */}
+        {/* ===== Files ===== */}
         <section id="panel-files" class="adm-panel">
           <div class="adm-panel-header">
             <h2><i class="fa-solid fa-cloud-arrow-up"></i> File Manager</h2>
+            <button class="adm-btn adm-btn-primary" id="addLinkFile" style={st.storageMode === 'external' ? '' : 'display:none'}>
+              <i class="fa-solid fa-link"></i> Add Link
+            </button>
           </div>
-          <div class="adm-card adm-upload-zone" id="uploadZone">
+
+          {/* Upload zone — 仅 KV 模式显示 */}
+          <div class="adm-card adm-upload-zone" id="uploadZone" style={st.storageMode === 'kv' ? '' : 'display:none'}>
             <div class="adm-upload-inner">
               <i class="fa-solid fa-cloud-arrow-up"></i>
               <p>Drag & drop files here or <label for="fileInput" class="adm-upload-link">browse</label></p>
               <input type="file" id="fileInput" multiple hidden />
-              <span class="adm-upload-hint">Max 100MB per file</span>
+              <span class="adm-upload-hint">Max {st.maxFileSize || 25}MB per file · Stored in KV</span>
             </div>
             <div class="adm-upload-progress" id="uploadProgress" style="display:none">
               <div class="adm-progress-bar"><div class="adm-progress-fill" id="progressFill"></div></div>
               <span id="progressText">Uploading...</span>
             </div>
           </div>
+
+          {/* 外部存储提示 */}
+          <div class="adm-card" id="externalHint" style={st.storageMode === 'external' ? '' : 'display:none'}>
+            <div style="text-align:center;padding:12px;color:var(--text-secondary);font-size:0.85rem">
+              <i class="fa-solid fa-link" style="font-size:1.5rem;margin-bottom:8px;display:block;color:var(--accent)"></i>
+              External link mode — click <strong>Add Link</strong> to add a file download URL
+            </div>
+          </div>
+
           <div id="filesList" class="adm-items">
             {files.map((f: any) => (
               <div class="adm-item" data-key={f.key} key={f.key}>
-                <div class="adm-item-icon"><i class="fa-solid fa-file"></i></div>
+                <div class="adm-item-icon">
+                  <i class={f.isExternal ? 'fa-solid fa-link' : 'fa-solid fa-file'}></i>
+                </div>
                 <div class="adm-item-body">
                   <strong>{f.displayName}</strong>
-                  <span class="adm-item-sub">{f.originalName} · {formatSize(f.size)} · {new Date(f.uploadedAt).toLocaleDateString()}</span>
+                  <span class="adm-item-sub">
+                    {f.originalName} · {formatSize(f.size)}
+                    {f.isExternal ? ' · External' : ' · KV'}
+                  </span>
                 </div>
                 <div class="adm-item-actions">
-                  <a href={'/api/download/' + f.key} class="adm-btn-icon" title="Download" target="_blank"><i class="fa-solid fa-download"></i></a>
+                  <a href={f.isExternal && f.externalUrl ? f.externalUrl : '/api/download/' + f.key} class="adm-btn-icon" title="Download" target="_blank"><i class="fa-solid fa-download"></i></a>
                   <button class="adm-btn-icon adm-btn-icon-danger delete-file" title="Delete"><i class="fa-solid fa-trash"></i></button>
                 </div>
               </div>
@@ -159,13 +173,46 @@ function dashboardView({ profile, websites, repos, files }: any) {
           </div>
         </section>
 
-        {/* ===== Settings Panel ===== */}
+        {/* ===== Settings ===== */}
         <section id="panel-settings" class="adm-panel">
           <div class="adm-panel-header">
             <h2><i class="fa-solid fa-gear"></i> Settings</h2>
           </div>
+
+          {/* Storage */}
           <div class="adm-card">
-            <h3 class="adm-card-title">Change Password</h3>
+            <h3 class="adm-card-title"><i class="fa-solid fa-hard-drive"></i> Storage</h3>
+            <p class="adm-card-desc">Choose how uploaded files are stored</p>
+            <div class="adm-radio-group" id="storageModeGroup">
+              <label class={`adm-radio-card ${st.storageMode === 'kv' ? 'active' : ''}`}>
+                <input type="radio" name="storageMode" value="kv" checked={st.storageMode === 'kv'} />
+                <div class="adm-radio-card-body">
+                  <div class="adm-radio-icon"><i class="fa-solid fa-database"></i></div>
+                  <div>
+                    <strong>KV Storage</strong>
+                    <span>Files stored as base64 in Cloudflare KV. Simple, no extra config. Max 25MB/file.</span>
+                  </div>
+                </div>
+              </label>
+              <label class={`adm-radio-card ${st.storageMode === 'external' ? 'active' : ''}`}>
+                <input type="radio" name="storageMode" value="external" checked={st.storageMode === 'external'} />
+                <div class="adm-radio-card-body">
+                  <div class="adm-radio-icon"><i class="fa-solid fa-link"></i></div>
+                  <div>
+                    <strong>External Links</strong>
+                    <span>Add download URLs from any external service (Google Drive, S3, etc). No size limit.</span>
+                  </div>
+                </div>
+              </label>
+            </div>
+            <button class="adm-btn adm-btn-primary" id="saveSettings" style="margin-top:16px">
+              <i class="fa-solid fa-save"></i> Save Storage Settings
+            </button>
+          </div>
+
+          {/* Password */}
+          <div class="adm-card">
+            <h3 class="adm-card-title"><i class="fa-solid fa-key"></i> Change Password</h3>
             <div class="adm-form-grid">
               <div class="adm-field"><label>Current Password</label><input id="set-oldpw" type="password" /></div>
               <div class="adm-field"><label>New Password</label><input id="set-newpw" type="password" /></div>
@@ -190,15 +237,14 @@ function dashboardView({ profile, websites, repos, files }: any) {
         </div>
       </div>
 
-      {/* Toast */}
       <div class="adm-toast-container" id="toastContainer"></div>
 
-      {/* Inline data for JS */}
       {raw(`<script>
         window.__DATA__ = {
           websites: ${JSON.stringify(websites)},
           repos: ${JSON.stringify(repos)},
-          files: ${JSON.stringify(files)}
+          files: ${JSON.stringify(files)},
+          settings: ${JSON.stringify(st)}
         };
       </script>`)}
       <script src="/static/admin.js"></script>
@@ -207,6 +253,7 @@ function dashboardView({ profile, websites, repos, files }: any) {
 }
 
 function formatSize(bytes: number): string {
+  if (!bytes || bytes === 0) return '0 B'
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'

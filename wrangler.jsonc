@@ -11,11 +11,5 @@
       "binding": "KV",
       "id": "portal-kv-placeholder"
     }
-  ],
-  "r2_buckets": [
-    {
-      "binding": "R2",
-      "bucket_name": "portal-files"
-    }
   ]
 }
