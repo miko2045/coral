@@ -16,6 +16,64 @@
   let clockInterval = null;
   let prefetchCache = {};
 
+  // === Top progress bar for navigation feedback ===
+  const progressBar = (() => {
+    const bar = document.createElement('div');
+    bar.id = 'spaProgressBar';
+    Object.assign(bar.style, {
+      position: 'fixed', top: '0', left: '0', height: '2.5px',
+      background: 'var(--accent)', zIndex: '99999',
+      width: '0%', opacity: '0',
+      transition: 'none', pointerEvents: 'none',
+      borderRadius: '0 2px 2px 0',
+      boxShadow: '0 0 8px var(--accent)'
+    });
+    document.body.appendChild(bar);
+
+    let raf = null;
+    let progress = 0;
+
+    return {
+      start() {
+        progress = 0;
+        bar.style.transition = 'none';
+        bar.style.width = '0%';
+        bar.style.opacity = '1';
+        // Quickly jump to 30% then crawl
+        requestAnimationFrame(() => {
+          bar.style.transition = 'width 0.15s ease-out';
+          bar.style.width = '30%';
+          progress = 30;
+          // Then slowly crawl to 80% over time
+          const crawl = () => {
+            if (progress < 80) {
+              progress += (80 - progress) * 0.03;
+              bar.style.width = progress + '%';
+              raf = requestAnimationFrame(crawl);
+            }
+          };
+          raf = requestAnimationFrame(crawl);
+        });
+      },
+      finish() {
+        if (raf) { cancelAnimationFrame(raf); raf = null; }
+        bar.style.transition = 'width 0.15s ease-out';
+        bar.style.width = '100%';
+        setTimeout(() => {
+          bar.style.transition = 'opacity 0.3s ease';
+          bar.style.opacity = '0';
+          setTimeout(() => { bar.style.width = '0%'; }, 300);
+        }, 150);
+      },
+      cancel() {
+        if (raf) { cancelAnimationFrame(raf); raf = null; }
+        bar.style.transition = 'opacity 0.2s ease';
+        bar.style.opacity = '0';
+        setTimeout(() => { bar.style.width = '0%'; }, 200);
+      }
+    };
+  })();
+
   // ==============================================
   //  THEME
   // ==============================================
@@ -662,19 +720,24 @@
     if (toPath === fromPath && !url.search) return;
 
     isTransitioning = true;
+    progressBar.start();
+
+    // Immediately update nav active state for instant visual feedback
+    updateNavActive(toPath);
 
     const container = document.getElementById('pageContent');
     if (!container) {
+      progressBar.cancel();
       window.location.href = href;
       return;
     }
 
     const dir = getDirection(fromPath, toPath);
     const isMobile = window.innerWidth <= 768;
-    const animOut = isMobile ? 120 : 200;
-    const animIn = isMobile ? 140 : 220;
+    const animOut = isMobile ? 100 : 180;
+    const animIn = isMobile ? 120 : 200;
 
-    // Start fetching immediately (don't wait for animation)
+    // Start fetching immediately with timeout
     const fetchPromise = (async () => {
       try {
         if (prefetchCache[href]) {
@@ -682,7 +745,11 @@
           delete prefetchCache[href];
           return cached;
         }
-        const resp = await fetch(href, { credentials: 'same-origin' });
+        // Add timeout: 4s on mobile, 6s on desktop
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), isMobile ? 4000 : 6000);
+        const resp = await fetch(href, { credentials: 'same-origin', signal: controller.signal });
+        clearTimeout(timeout);
         return resp.ok ? await resp.text() : null;
       } catch { return null; }
     })();
@@ -691,16 +758,32 @@
     container.style.animation = `slideOut${dir === 'left' ? 'Left' : 'Right'} ${animOut}ms cubic-bezier(0.4,0,0.6,1) forwards`;
     container.style.pointerEvents = 'none';
 
-    // Wait for BOTH animation and fetch to complete
-    const [html] = await Promise.all([
-      fetchPromise,
-      new Promise(r => setTimeout(r, animOut))
+    // Wait for animation first
+    await new Promise(r => setTimeout(r, animOut));
+
+    // Check if fetch is already done (prefetch hit or fast network)
+    let html = null;
+    const raceResult = await Promise.race([
+      fetchPromise.then(h => ({ html: h, done: true })),
+      new Promise(r => setTimeout(r, 50)).then(() => ({ done: false }))
     ]);
+
+    if (raceResult.done) {
+      html = raceResult.html;
+    } else {
+      // Fetch still pending — show lightweight skeleton immediately
+      container.innerHTML = '<div class="spa-loading"><div class="spa-loading-spinner"></div></div>';
+      container.style.animation = '';
+      container.style.opacity = '1';
+      // Now wait for fetch
+      html = await fetchPromise;
+    }
 
     if (!html) {
       container.style.animation = '';
       container.style.pointerEvents = '';
       isTransitioning = false;
+      progressBar.cancel();
       window.location.href = href;
       return;
     }
@@ -713,6 +796,7 @@
       container.style.animation = '';
       container.style.pointerEvents = '';
       isTransitioning = false;
+      progressBar.cancel();
       window.location.href = href;
       return;
     }
@@ -728,6 +812,8 @@
     // === ANIMATE IN ===
     container.style.animation = `slideIn${dir === 'left' ? 'Right' : 'Left'} ${animIn}ms cubic-bezier(0,0,0.2,1) forwards`;
 
+    progressBar.finish();
+
     await new Promise(r => setTimeout(r, animIn));
 
     container.style.animation = '';
@@ -738,7 +824,6 @@
       history.pushState({ path: href }, '', href);
     }
 
-    updateNavActive(toPath);
     initPageBehaviors();
     attachSPALinks();
 
