@@ -773,64 +773,27 @@
       return;
     }
 
-    // Language toggle (delegated) — smooth crossfade with blur overlay
+    // Language toggle (delegated) — smooth crossfade then reload
     const langBtn = e.target.closest('.lang-toggle');
     if (langBtn) {
       e.preventDefault();
       const newLang = lang === 'zh' ? 'en' : 'zh';
       document.cookie = `portal_lang=${newLang}; path=/; max-age=${365 * 24 * 3600}; samesite=lax`;
 
-      // Create premium crossfade overlay
+      // Create smooth crossfade overlay
       const overlay = document.createElement('div');
       overlay.className = 'lang-crossfade-overlay';
       document.body.appendChild(overlay);
       
-      // Trigger animation in next frame for CSS transition
+      // Trigger fade-in
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           overlay.classList.add('active');
         });
       });
       
-      // Prefetch new page content during animation
-      const fetchProm = fetch(window.location.href, { credentials: 'same-origin' })
-        .then(r => r.ok ? r.text() : null)
-        .catch(() => null);
-      
-      // Wait for overlay to fully cover, then swap
-      setTimeout(async () => {
-        try {
-          const html = await fetchProm;
-          if (html) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const newContent = doc.getElementById('pageContent');
-            const newTitle = doc.querySelector('title');
-            const container = document.getElementById('pageContent');
-            
-            if (newContent && container) {
-              container.innerHTML = newContent.innerHTML;
-              container.setAttribute('data-page', newContent.getAttribute('data-page') || '');
-              if (newTitle) document.title = newTitle.textContent;
-              
-              // Update body lang attribute
-              document.body.setAttribute('data-lang', newLang);
-              lang = newLang;
-              
-              // Re-init behaviors
-              initPageBehaviors();
-              attachSPALinks();
-              
-              // Fade out overlay
-              overlay.classList.remove('active');
-              setTimeout(() => { overlay.remove(); }, 400);
-              return;
-            }
-          }
-        } catch (_) {}
-        // Fallback to reload
-        window.location.reload();
-      }, 380);
+      // Reload after overlay covers the screen
+      setTimeout(() => { window.location.reload(); }, 400);
       return;
     }
   });
