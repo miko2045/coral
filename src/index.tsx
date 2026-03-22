@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { secureHeaders } from 'hono/secure-headers'
 import { renderer } from './renderer'
 import { adminPage } from './admin'
 import { homePage } from './home'
@@ -18,26 +19,19 @@ const app = new Hono<{ Bindings: Bindings }>()
 // ==================== 安全中间件 ====================
 
 // 1. Security Headers (CSP, XSS, anti-clickjacking, anti-sniffing)
-app.use('*', async (c, next) => {
-  await next()
-  // CSP: allow CDN assets, inline styles/scripts, self
-  c.res.headers.set('Content-Security-Policy', [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net",
-    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
-    "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com",
-    "img-src 'self' https: data:",
-    "connect-src 'self'",
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-  ].join('; '))
-  c.res.headers.set('X-Content-Type-Options', 'nosniff')
-  c.res.headers.set('X-Frame-Options', 'DENY')
-  c.res.headers.set('X-XSS-Protection', '1; mode=block')
-  c.res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  c.res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-})
+app.use('*', secureHeaders({
+  contentSecurityPolicy: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdn.jsdelivr.net"],
+    styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
+    fontSrc: ["'self'", "https://cdn.jsdelivr.net", "https://fonts.gstatic.com"],
+    imgSrc: ["'self'", "https:", "data:"],
+    connectSrc: ["'self'"],
+  },
+  xContentTypeOptions: 'nosniff',
+  xFrameOptions: 'DENY',
+  referrerPolicy: 'strict-origin-when-cross-origin',
+}))
 
 // 2. Anti-crawler: block common bot User-Agents on non-API routes
 app.use('*', async (c, next) => {
@@ -157,11 +151,16 @@ const DEFAULT_SETTINGS = {
 }
 
 // ==================== 辅助函数 ====================
-async function getData(kv: KVNamespace, key: string, fallback: any) {
-  const val = await kv.get(key)
-  if (val) return JSON.parse(val)
-  await kv.put(key, JSON.stringify(fallback))
-  return fallback
+async function getData(kv: KVNamespace | undefined, key: string, fallback: any) {
+  if (!kv) return fallback
+  try {
+    const val = await kv.get(key)
+    if (val) return JSON.parse(val)
+    await kv.put(key, JSON.stringify(fallback))
+    return fallback
+  } catch {
+    return fallback
+  }
 }
 
 // ==================== 语言切换 API ====================
@@ -235,15 +234,16 @@ interface TokenStatus {
 }
 
 /** 从 KV 加载 token 列表和状态 */
-async function getTokenPool(kv: KVNamespace): Promise<TokenStatus> {
+async function getTokenPool(kv: KVNamespace | undefined): Promise<TokenStatus> {
+  if (!kv) return { tokens: [], cooldowns: {}, lastIndex: 0 }
   // 读取 admin 配置的 token 列表
-  const raw = await kv.get('github_tokens')
+  const raw = await kv.get('github_tokens').catch(() => null)
   const tokens: string[] = raw ? JSON.parse(raw) : []
   // 读取冷却状态
-  const cdRaw = await kv.get('github_token_cooldowns')
+  const cdRaw = await kv.get('github_token_cooldowns').catch(() => null)
   const cooldowns: Record<string, number> = cdRaw ? JSON.parse(cdRaw) : {}
   // 读取轮询索引
-  const idxRaw = await kv.get('github_token_index')
+  const idxRaw = await kv.get('github_token_index').catch(() => null)
   const lastIndex = idxRaw ? parseInt(idxRaw) : 0
   return { tokens, cooldowns, lastIndex }
 }
@@ -268,18 +268,19 @@ function pickToken(pool: TokenStatus): { token: string | null; index: number } {
 }
 
 /** 标记 token 进入冷却 */
-async function cooldownToken(kv: KVNamespace, pool: TokenStatus, token: string) {
+async function cooldownToken(kv: KVNamespace | undefined, pool: TokenStatus, token: string) {
   pool.cooldowns[token] = Date.now() + TOKEN_COOLDOWN * 1000
-  await kv.put('github_token_cooldowns', JSON.stringify(pool.cooldowns)).catch(() => {})
+  if (kv) await kv.put('github_token_cooldowns', JSON.stringify(pool.cooldowns)).catch(() => {})
 }
 
 /** 更新轮询索引 */
-async function saveTokenIndex(kv: KVNamespace, index: number) {
-  await kv.put('github_token_index', String(index)).catch(() => {})
+async function saveTokenIndex(kv: KVNamespace | undefined, index: number) {
+  if (kv) await kv.put('github_token_index', String(index)).catch(() => {})
 }
 
 /** IP 频率限制检查：返回 { allowed, remaining, resetAt } */
-async function checkRateLimit(kv: KVNamespace, ip: string): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+async function checkRateLimit(kv: KVNamespace | undefined, ip: string): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+  if (!kv) return { allowed: true, remaining: RATE_LIMIT_MAX, resetAt: 0 }
   const key = `ratelimit:${ip}`
   const raw = await kv.get(key)
   const now = Math.floor(Date.now() / 1000)
@@ -456,11 +457,11 @@ interface CachedData {
   apiStatus: string
 }
 
-async function getCachedTrending(kv: KVNamespace, tab: string, langFilter: string, forceRefresh: boolean = false) {
+async function getCachedTrending(kv: KVNamespace | undefined, tab: string, langFilter: string, forceRefresh: boolean = false) {
   const cacheKey = `trending:${tab}:${langFilter || 'all'}`
 
-  if (!forceRefresh) {
-    const cached = await kv.get(cacheKey)
+  if (!forceRefresh && kv) {
+    const cached = await kv.get(cacheKey).catch(() => null)
     if (cached) {
       try {
         const data: CachedData = JSON.parse(cached)
@@ -564,7 +565,7 @@ app.get('/trending', async (c) => {
   // 不刷新也获取一下限流剩余信息展示
   if (!refresh) {
     const key = `ratelimit:${ip}`
-    const raw = await c.env.KV.get(key).catch(() => null)
+    const raw = c.env.KV ? await c.env.KV.get(key).catch(() => null) : null
     if (raw) {
       const data = JSON.parse(raw) as { count: number; windowStart: number }
       const now = Math.floor(Date.now() / 1000)
@@ -694,7 +695,7 @@ app.get('/api/download/:key', async (c) => {
   }
 
   // KV 存储模式
-  const b64 = await c.env.KV.get(`file:${key}`)
+  const b64 = c.env.KV ? await c.env.KV.get(`file:${key}`).catch(() => null) : null
   if (!b64) return c.json({ error: 'File data not found' }, 404)
 
   const binary = Uint8Array.from(atob(b64), ch => ch.charCodeAt(0))
@@ -710,8 +711,13 @@ async function checkAuth(c: any): Promise<boolean> {
   const cookie = c.req.header('Cookie') || ''
   const match = cookie.match(/portal_session=([^;]+)/)
   if (!match) return false
-  const stored = await c.env.KV.get('session:' + match[1])
-  return !!stored
+  if (!c.env.KV) return false
+  try {
+    const stored = await c.env.KV.get('session:' + match[1])
+    return !!stored
+  } catch {
+    return false
+  }
 }
 
 // ==================== 后台登录 ====================
@@ -731,6 +737,11 @@ app.post('/admin/login', async (c) => {
   
   const body = await c.req.parseBody()
   const password = sanitize((body.password as string) || '')
+  
+  if (!c.env.KV) {
+    return c.render(adminPage('login', { error: lang === 'zh' ? 'KV 存储未配置' : 'KV storage not configured', lang }), { title: lang === 'zh' ? '后台登录' : 'Admin Login', lang })
+  }
+  
   let storedPw = await c.env.KV.get('admin_password')
   
   if (!storedPw) {

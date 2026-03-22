@@ -1163,8 +1163,8 @@ a { text-decoration: none; color: inherit; }
 }
 
 .hero-avatar-wrap:hover .hero-avatar {
-  transform: scale(1.08) rotate(3deg);
-  box-shadow: 0 12px 40px rgba(232,168,56,0.25), 0 0 0 2px rgba(232,168,56,0.15);
+  transform: scale(1.05);
+  box-shadow: 0 8px 32px rgba(232,168,56,0.22), 0 0 0 2px rgba(232,168,56,0.12);
 }
 
 .hero-avatar-ring {
@@ -1364,42 +1364,41 @@ a { text-decoration: none; color: inherit; }
   text-align: center;
   text-decoration: none;
   color: inherit;
-  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.4s ease, box-shadow 0.4s ease, border-color 0.3s ease;
   cursor: pointer;
   position: relative;
   overflow: hidden;
 }
 
-/* Gradient border on hover */
+/* Subtle top accent bar on hover */
 .stat-pill::before {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: var(--radius-sm);
-  padding: 1px;
-  background: linear-gradient(135deg, var(--accent), #7C5CFC);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 0.4s ease;
+  top: 0; left: 50%;
+  width: 0;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 0 0 2px 2px;
+  transition: width 0.4s ease, left 0.4s ease;
 }
 
 .stat-pill:hover {
-  transform: translateY(-5px) scale(1.02);
-  box-shadow: 0 16px 40px rgba(0,0,0,0.06), 0 0 20px color-mix(in srgb, var(--accent) 8%, transparent);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.05);
+  border-color: var(--border-hover);
 }
 
 .stat-pill:hover::before {
-  opacity: 1;
+  width: 50%;
+  left: 25%;
 }
 
 .stat-pill-accent {
   background: linear-gradient(160deg, var(--accent-soft), color-mix(in srgb, var(--accent) 10%, var(--bg-card)));
+  border-color: color-mix(in srgb, var(--accent) 18%, transparent);
   cursor: default;
 }
-.stat-pill-accent::before { opacity: 1; }
+.stat-pill-accent::before { width: 40%; left: 30%; }
 
 .stat-pill-num {
   display: block;
@@ -1419,7 +1418,6 @@ a { text-decoration: none; color: inherit; }
 
 .stat-pill:hover .stat-pill-num {
   color: var(--accent);
-  transform: scale(1.06);
 }
 
 .stat-pill-label {
@@ -1472,7 +1470,7 @@ a { text-decoration: none; color: inherit; }
   border-radius: var(--radius-sm);
   text-decoration: none;
   color: inherit;
-  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.4s ease, box-shadow 0.4s ease, border-color 0.3s ease;
   position: relative;
   overflow: hidden;
 }
@@ -1510,8 +1508,8 @@ a { text-decoration: none; color: inherit; }
 .nav-card:hover::after { width: 60%; }
 
 .nav-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(0,0,0,0.06);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.05);
   border-color: var(--border-hover);
 }
 
@@ -1534,14 +1532,13 @@ a { text-decoration: none; color: inherit; }
 .nav-card-trending .nav-card-icon { background: rgba(239,68,68,0.08); color: #EF4444; }
 
 .nav-card:hover .nav-card-icon {
-  transform: scale(1.12) rotate(-5deg);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  transform: scale(1.06);
 }
 
-.nav-card-projects:hover .nav-card-icon { background: #E8A838; color: #fff; box-shadow: 0 4px 16px rgba(232,168,56,0.3); }
-.nav-card-github:hover .nav-card-icon { background: #7C5CFC; color: #fff; box-shadow: 0 4px 16px rgba(124,92,252,0.3); }
-.nav-card-downloads:hover .nav-card-icon { background: #22C55E; color: #fff; box-shadow: 0 4px 16px rgba(34,197,94,0.3); }
-.nav-card-trending:hover .nav-card-icon { background: #EF4444; color: #fff; box-shadow: 0 4px 16px rgba(239,68,68,0.3); }
+.nav-card-projects:hover .nav-card-icon { background: #E8A838; color: #fff; }
+.nav-card-github:hover .nav-card-icon { background: #7C5CFC; color: #fff; }
+.nav-card-downloads:hover .nav-card-icon { background: #22C55E; color: #fff; }
+.nav-card-trending:hover .nav-card-icon { background: #EF4444; color: #fff; }
 
 .nav-card-body {
   flex: 1;
