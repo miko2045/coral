@@ -448,6 +448,101 @@
     } catch (e) { toast(e.message, 'error'); }
   });
 
+  // === Change Username ===
+  document.getElementById('changeUsername')?.addEventListener('click', async () => {
+    const newUsername = document.getElementById('set-newUsername')?.value;
+    if (!newUsername || newUsername.trim().length < 2) {
+      return toast(lang === 'zh' ? '用户名至少2位' : 'Username must be at least 2 characters', 'error');
+    }
+    try {
+      await api('/admin/api/username', { newUsername: newUsername.trim() });
+      toast(lang === 'zh' ? '用户名已更新!' : 'Username updated!');
+      document.getElementById('set-newUsername').value = '';
+    } catch (e) { toast(e.message, 'error'); }
+  });
+
+  // =============================================
+  // === Share Links Management ===
+  // =============================================
+  async function loadShares() {
+    const container = document.getElementById('sharesListContainer');
+    if (!container) return;
+    try {
+      const resp = await fetch('/admin/api/shares', { credentials: 'same-origin' });
+      const data = await resp.json();
+      const shares = data.shares || [];
+      
+      if (shares.length === 0) {
+        container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-secondary)">
+          <i class="fa-solid fa-share-nodes" style="font-size:2rem;margin-bottom:8px;display:block;opacity:0.5"></i>
+          ${lang === 'zh' ? '暂无分享链接' : 'No share links yet'}
+          <br><small>${lang === 'zh' ? '在下载页面点击分享按钮创建' : 'Create one from the Downloads page'}</small>
+        </div>`;
+        return;
+      }
+      
+      const now = Date.now();
+      container.innerHTML = shares.map(s => {
+        const isExpired = s.expiresAt && now > s.expiresAt;
+        const isMaxed = s.maxDownloads && s.downloads >= s.maxDownloads;
+        const statusColor = (isExpired || isMaxed) ? '#EF4444' : '#22C55E';
+        const statusText = isExpired ? (lang === 'zh' ? '已过期' : 'Expired') 
+          : isMaxed ? (lang === 'zh' ? '已达上限' : 'Limit reached')
+          : (lang === 'zh' ? '有效' : 'Active');
+        const hasPassword = s.password ? '<i class="fa-solid fa-lock" style="color:var(--accent);margin-left:6px" title="Password protected"></i>' : '';
+        const expiresText = s.expiresAt ? new Date(s.expiresAt).toLocaleString() : (lang === 'zh' ? '永不' : 'Never');
+        const downloadsText = s.maxDownloads ? `${s.downloads}/${s.maxDownloads}` : `${s.downloads}/∞`;
+        
+        return `<div class="adm-item" data-share-id="${s.id}">
+          <div class="adm-item-icon" style="color:${statusColor}"><i class="fa-solid fa-link"></i></div>
+          <div class="adm-item-body">
+            <strong>${s.fileName}${hasPassword}</strong>
+            <span class="adm-item-sub">
+              <span style="color:${statusColor};font-weight:600">${statusText}</span>
+              · ${lang === 'zh' ? '下载' : 'Downloads'}: ${downloadsText}
+              · ${lang === 'zh' ? '过期' : 'Expires'}: ${expiresText}
+            </span>
+          </div>
+          <div class="adm-item-actions">
+            <button class="adm-btn-icon copy-share-link" data-url="${window.location.origin}/s/${s.id}" title="Copy link"><i class="fa-solid fa-copy"></i></button>
+            <button class="adm-btn-icon adm-btn-icon-danger delete-share" title="${lang === 'zh' ? '删除' : 'Delete'}"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </div>`;
+      }).join('');
+      
+      // Bind copy events
+      container.querySelectorAll('.copy-share-link').forEach(btn => {
+        btn.addEventListener('click', () => {
+          navigator.clipboard.writeText(btn.getAttribute('data-url')).then(() => {
+            btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+            setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 1500);
+          });
+        });
+      });
+      
+      // Bind delete events
+      container.querySelectorAll('.delete-share').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const item = btn.closest('.adm-item');
+          const shareId = item.getAttribute('data-share-id');
+          if (!confirm(lang === 'zh' ? '确定删除此分享链接?' : 'Delete this share link?')) return;
+          try {
+            await api('/admin/api/share/delete', { shareId });
+            toast(lang === 'zh' ? '分享已删除' : 'Share deleted');
+            loadShares();
+          } catch (e) { toast(e.message, 'error'); }
+        });
+      });
+    } catch (e) {
+      container.innerHTML = `<div style="text-align:center;padding:20px;color:#EF4444">${e.message}</div>`;
+    }
+  }
+  
+  // Load shares when tab is switched
+  document.querySelectorAll('.adm-nav-item[data-tab="shares"]').forEach(btn => {
+    btn.addEventListener('click', () => loadShares());
+  });
+
   // =============================================
   // === GitHub Token Pool Management ===
   // =============================================

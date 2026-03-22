@@ -31,12 +31,14 @@ export const translations = {
   // === Admin Login ===
   adminLogin: {
     title: { zh: '后台管理', en: 'Portal Admin' },
-    subtitle: { zh: '输入密码以管理您的门户', en: 'Enter your password to manage your portal' },
+    subtitle: { zh: '输入凭证以管理您的门户', en: 'Enter your credentials to manage your portal' },
+    username: { zh: '用户名', en: 'Username' },
+    usernamePlaceholder: { zh: '输入管理员用户名', en: 'Enter admin username' },
     password: { zh: '密码', en: 'Password' },
     placeholder: { zh: '输入管理员密码', en: 'Enter admin password' },
     signIn: { zh: '登 录', en: 'Sign In' },
-    hint: { zh: '默认密码: admin123', en: 'Default password: admin123' },
-    wrongPw: { zh: '密码错误', en: 'Incorrect password' },
+    wrongPw: { zh: '用户名或密码错误', en: 'Invalid username or password' },
+    tooMany: { zh: '尝试次数过多，请5分钟后再试', en: 'Too many attempts, try again in 5 minutes' },
   },
 
   // === Admin Dashboard ===
@@ -111,10 +113,14 @@ export const translations = {
     storagePath: { zh: '存储路径', en: 'Storage Path' },
     fileCount: { zh: '文件数量', en: 'File Count' },
     totalSize: { zh: '总大小', en: 'Total Size' },
-    changePassword: { zh: '修改密码', en: 'Change Password' },
+    changePassword: { zh: '安全设置', en: 'Security Settings' },
     currentPw: { zh: '当前密码', en: 'Current Password' },
     newPw: { zh: '新密码', en: 'New Password' },
     updatePw: { zh: '更新密码', en: 'Update Password' },
+    changeUsername: { zh: '修改用户名', en: 'Change Username' },
+    currentUsername: { zh: '当前用户名', en: 'Current Username' },
+    newUsername: { zh: '新用户名', en: 'New Username' },
+    updateUsername: { zh: '更新用户名', en: 'Update Username' },
 
     // GitHub Token Management
     githubTokens: { zh: 'GitHub Tokens', en: 'GitHub Tokens' },

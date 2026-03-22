@@ -15,6 +15,7 @@
   let isTransitioning = false;
   let clockInterval = null;
   let prefetchCache = {};
+  let allPagesCache = {}; // Persistent cache for all SPA pages
 
   // === Top progress bar for navigation feedback ===
   const progressBar = (() => {
@@ -670,6 +671,83 @@
   }
 
   // ==============================================
+  //  FILE SHARING MODAL
+  // ==============================================
+  function initShareModal() {
+    const modal = document.getElementById('shareModal');
+    if (!modal) return;
+
+    let currentFileKey = '';
+    const closeModal = () => { modal.style.display = 'none'; };
+
+    // Close button
+    document.getElementById('shareModalClose')?.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Share buttons (delegated)
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.share-btn');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      currentFileKey = btn.getAttribute('data-filekey');
+      const filename = btn.getAttribute('data-filename');
+      document.getElementById('shareFileName').textContent = filename;
+      document.getElementById('sharePassword').value = '';
+      document.getElementById('shareExpires').value = '0';
+      document.getElementById('shareMaxDownloads').value = '0';
+      document.getElementById('shareResult').style.display = 'none';
+      modal.style.display = 'flex';
+    });
+
+    // Create share link
+    document.getElementById('shareCreateBtn')?.addEventListener('click', async () => {
+      const password = document.getElementById('sharePassword').value.trim();
+      const expiresIn = parseInt(document.getElementById('shareExpires').value) || 0;
+      const maxDownloads = parseInt(document.getElementById('shareMaxDownloads').value) || 0;
+
+      const btn = document.getElementById('shareCreateBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+      try {
+        const resp = await fetch('/admin/api/share', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ fileKey: currentFileKey, password, expiresIn, maxDownloads }),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+          const fullUrl = window.location.origin + data.shareUrl;
+          document.getElementById('shareUrl').value = fullUrl;
+          document.getElementById('shareResult').style.display = 'block';
+        } else {
+          alert(data.error || 'Failed to create share link');
+        }
+      } catch (err) {
+        alert('Network error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-link"></i> ' + (lang === 'zh' ? '生成分享链接' : 'Generate Share Link');
+      }
+    });
+
+    // Copy button
+    document.getElementById('shareCopyBtn')?.addEventListener('click', () => {
+      const url = document.getElementById('shareUrl');
+      url.select();
+      navigator.clipboard.writeText(url.value).then(() => {
+        const btn = document.getElementById('shareCopyBtn');
+        btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i>'; }, 1500);
+      });
+    });
+  }
+
+  // ==============================================
   //  RE-INIT ALL PAGE-SPECIFIC BEHAVIORS
   // ==============================================
   function initPageBehaviors() {
@@ -680,6 +758,7 @@
     initDownloadSearch();
     initTrendingTabs();
     initTrendingLangFilter();
+    initShareModal();
     initAOS();
   }
 
@@ -704,10 +783,24 @@
 
   // Prefetch on hover for instant transitions
   function prefetchPage(href) {
-    if (prefetchCache[href]) return;
+    if (allPagesCache[href] || prefetchCache[href]) return;
     prefetchCache[href] = fetch(href, { credentials: 'same-origin' })
       .then(r => r.ok ? r.text() : null)
+      .then(html => { if (html) allPagesCache[href] = html; return html; })
       .catch(() => null);
+  }
+
+  // Eagerly prefetch all SPA routes at load for instant navigation
+  function prefetchAllRoutes() {
+    const current = window.location.pathname;
+    SPA_ROUTES.forEach(route => {
+      if (route !== current && !allPagesCache[route]) {
+        fetch(route, { credentials: 'same-origin' })
+          .then(r => r.ok ? r.text() : null)
+          .then(html => { if (html) allPagesCache[route] = html; })
+          .catch(() => {});
+      }
+    });
   }
 
   async function navigateTo(href, pushState = true) {
@@ -737,20 +830,24 @@
     const animOut = isMobile ? 100 : 180;
     const animIn = isMobile ? 120 : 200;
 
-    // Start fetching immediately with timeout
-    const fetchPromise = (async () => {
+    // Check persistent cache first for instant navigation
+    let html = allPagesCache[href] || allPagesCache[toPath] || null;
+
+    // If not in persistent cache, try prefetch cache or fetch
+    const fetchPromise = html ? Promise.resolve(html) : (async () => {
       try {
         if (prefetchCache[href]) {
           const cached = await prefetchCache[href];
           delete prefetchCache[href];
           return cached;
         }
-        // Add timeout: 4s on mobile, 6s on desktop
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), isMobile ? 4000 : 6000);
         const resp = await fetch(href, { credentials: 'same-origin', signal: controller.signal });
         clearTimeout(timeout);
-        return resp.ok ? await resp.text() : null;
+        const text = resp.ok ? await resp.text() : null;
+        if (text) allPagesCache[href] = text; // Cache for future
+        return text;
       } catch { return null; }
     })();
 
@@ -758,25 +855,24 @@
     container.style.animation = `slideOut${dir === 'left' ? 'Left' : 'Right'} ${animOut}ms cubic-bezier(0.4,0,0.6,1) forwards`;
     container.style.pointerEvents = 'none';
 
-    // Wait for animation first
-    await new Promise(r => setTimeout(r, animOut));
-
-    // Check if fetch is already done (prefetch hit or fast network)
-    let html = null;
-    const raceResult = await Promise.race([
-      fetchPromise.then(h => ({ html: h, done: true })),
-      new Promise(r => setTimeout(r, 50)).then(() => ({ done: false }))
-    ]);
-
-    if (raceResult.done) {
-      html = raceResult.html;
+    // If we already have cached HTML, just wait for slideOut then swap immediately
+    if (html) {
+      await new Promise(r => setTimeout(r, animOut));
     } else {
-      // Fetch still pending — show lightweight skeleton immediately
-      container.innerHTML = '<div class="spa-loading"><div class="spa-loading-spinner"></div></div>';
-      container.style.animation = '';
-      container.style.opacity = '1';
-      // Now wait for fetch
-      html = await fetchPromise;
+      // Wait for animation, then race fetch
+      await new Promise(r => setTimeout(r, animOut));
+      const raceResult = await Promise.race([
+        fetchPromise.then(h => ({ html: h, done: true })),
+        new Promise(r => setTimeout(r, 30)).then(() => ({ done: false }))
+      ]);
+      if (raceResult.done) {
+        html = raceResult.html;
+      } else {
+        container.innerHTML = '<div class="spa-loading"><div class="spa-loading-spinner"></div></div>';
+        container.style.animation = '';
+        container.style.opacity = '1';
+        html = await fetchPromise;
+      }
     }
 
     if (!html) {
@@ -814,10 +910,11 @@
 
     progressBar.finish();
 
-    await new Promise(r => setTimeout(r, animIn));
-
-    container.style.animation = '';
-    container.style.pointerEvents = '';
+    // Don't await slideIn — let it play while we re-init behaviors
+    setTimeout(() => {
+      container.style.animation = '';
+      container.style.pointerEvents = '';
+    }, animIn);
 
     // === POST-TRANSITION UPDATES ===
     if (pushState) {
@@ -828,6 +925,15 @@
     attachSPALinks();
 
     isTransitioning = false;
+
+    // Re-cache this page's HTML for future back-nav
+    allPagesCache[toPath] = html;
+    // Refresh cache for the page we left (data may have changed)
+    delete allPagesCache[fromPath];
+    fetch(fromPath, { credentials: 'same-origin' })
+      .then(r => r.ok ? r.text() : null)
+      .then(h => { if (h) allPagesCache[fromPath] = h; })
+      .catch(() => {});
   }
 
   // Attach SPA click handlers to all qualifying links
@@ -934,5 +1040,13 @@
 
   // Store initial history state
   history.replaceState({ path: window.location.pathname + window.location.search }, '');
+
+  // Eagerly prefetch all SPA routes after a short delay
+  // This ensures instant navigation on mobile
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(() => prefetchAllRoutes());
+  } else {
+    setTimeout(prefetchAllRoutes, 1500);
+  }
 
 })();

@@ -1,0 +1,229 @@
+/**
+ * Local File Server — runs alongside wrangler pages dev on VPS
+ * Handles file uploads and downloads for the portal's "local storage" mode
+ * 
+ * Usage: node fileserver.mjs
+ * Default port: 8899
+ * Default storage: /data/portal/files
+ */
+
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+
+const PORT = process.env.FILE_SERVER_PORT || 8899;
+const DEFAULT_STORAGE = process.env.FILE_STORAGE_PATH || '/data/portal/files';
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB max
+
+// Ensure storage directory exists
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+// Parse multipart form data (simplified)
+function parseMultipart(buffer, boundary) {
+  const parts = [];
+  const boundaryStr = `--${boundary}`;
+  const endStr = `--${boundary}--`;
+  
+  const text = buffer.toString('latin1');
+  const segments = text.split(boundaryStr).filter(s => s.trim() && !s.startsWith('--'));
+  
+  for (const segment of segments) {
+    if (segment.trim() === '--' || segment.trim() === '') continue;
+    
+    const headerEnd = segment.indexOf('\r\n\r\n');
+    if (headerEnd === -1) continue;
+    
+    const headers = segment.substring(0, headerEnd);
+    const bodyStr = segment.substring(headerEnd + 4);
+    // Remove trailing \r\n
+    const body = bodyStr.endsWith('\r\n') ? bodyStr.slice(0, -2) : bodyStr;
+    
+    const nameMatch = headers.match(/name="([^"]+)"/);
+    const filenameMatch = headers.match(/filename="([^"]+)"/);
+    
+    if (nameMatch) {
+      const part = { name: nameMatch[1] };
+      if (filenameMatch) {
+        part.filename = filenameMatch[1];
+        // Convert back to buffer for file data
+        part.data = Buffer.from(body, 'latin1');
+      } else {
+        part.value = body.trim();
+      }
+      parts.push(part);
+    }
+  }
+  return parts;
+}
+
+const server = http.createServer(async (req, res) => {
+  // CORS headers (only allow local)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+  
+  const url = new URL(req.url, `http://localhost:${PORT}`);
+  
+  // Health check
+  if (url.pathname === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', storage: DEFAULT_STORAGE }));
+    return;
+  }
+  
+  // Upload file
+  if (req.method === 'POST' && url.pathname === '/upload') {
+    const contentType = req.headers['content-type'] || '';
+    const boundaryMatch = contentType.match(/boundary=(.+)/);
+    
+    if (!boundaryMatch) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Missing multipart boundary' }));
+      return;
+    }
+    
+    const chunks = [];
+    let totalSize = 0;
+    
+    req.on('data', chunk => {
+      totalSize += chunk.length;
+      if (totalSize > MAX_FILE_SIZE) {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'File too large' }));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    
+    req.on('end', () => {
+      try {
+        const buffer = Buffer.concat(chunks);
+        const parts = parseMultipart(buffer, boundaryMatch[1]);
+        
+        const filePart = parts.find(p => p.name === 'file');
+        const pathPart = parts.find(p => p.name === 'path');
+        const filenamePart = parts.find(p => p.name === 'filename');
+        
+        if (!filePart || !filePart.data) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'No file found' }));
+          return;
+        }
+        
+        const storagePath = pathPart?.value || DEFAULT_STORAGE;
+        const filename = filenamePart?.value || filePart.filename || `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+        
+        ensureDir(storagePath);
+        
+        const filePath = path.join(storagePath, filename);
+        fs.writeFileSync(filePath, filePart.data);
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, filename, path: filePath, size: filePart.data.length }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    
+    return;
+  }
+  
+  // Download file — serve files from storage path
+  if (req.method === 'GET' && url.pathname.startsWith('/data/')) {
+    const filePath = decodeURIComponent(url.pathname);
+    
+    // Security: prevent path traversal
+    const resolved = path.resolve(filePath);
+    if (!resolved.startsWith('/data/')) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Forbidden' }));
+      return;
+    }
+    
+    if (!fs.existsSync(resolved)) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'File not found' }));
+      return;
+    }
+    
+    const stat = fs.statSync(resolved);
+    res.writeHead(200, {
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': stat.size,
+    });
+    fs.createReadStream(resolved).pipe(res);
+    return;
+  }
+  
+  // List files
+  if (req.method === 'GET' && url.pathname === '/list') {
+    const dir = url.searchParams.get('path') || DEFAULT_STORAGE;
+    try {
+      ensureDir(dir);
+      const files = fs.readdirSync(dir).map(name => {
+        const stat = fs.statSync(path.join(dir, name));
+        return { name, size: stat.size, modified: stat.mtime.toISOString() };
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ files }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+  
+  // Delete file
+  if (req.method === 'POST' && url.pathname === '/delete') {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => {
+      try {
+        const { filename, path: storagePath } = JSON.parse(Buffer.concat(chunks).toString());
+        const dir = storagePath || DEFAULT_STORAGE;
+        const filePath = path.join(dir, filename);
+        
+        // Security: prevent path traversal
+        const resolved = path.resolve(filePath);
+        if (!resolved.startsWith(path.resolve(dir))) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Forbidden' }));
+          return;
+        }
+        
+        if (fs.existsSync(resolved)) {
+          fs.unlinkSync(resolved);
+        }
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+  
+  res.writeHead(404, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'Not found' }));
+});
+
+server.listen(PORT, '127.0.0.1', () => {
+  console.log(`[FileServer] Listening on http://127.0.0.1:${PORT}`);
+  console.log(`[FileServer] Storage path: ${DEFAULT_STORAGE}`);
+  ensureDir(DEFAULT_STORAGE);
+});

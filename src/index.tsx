@@ -239,7 +239,8 @@ app.get('/downloads', async (c) => {
   const lang = parseLang(c.req.header('Cookie'))
   const files = await getData(c.env.KV, 'files', [])
   const profile = await getData(c.env.KV, 'profile', DEFAULT_PROFILE)
-  return c.render(downloadsPage(files, lang), { title: `${t('home', 'downloadsTitle', lang)} — ${profile.name}`, lang })
+  const isAdmin = await checkAuth(c)
+  return c.render(downloadsPage(files, lang, isAdmin), { title: `${t('home', 'downloadsTitle', lang)} — ${profile.name}`, lang })
 })
 
 // ==================== API: 公开数据 ====================
@@ -252,6 +253,261 @@ app.get('/api/data', async (c) => {
 })
 
 // ==================== API: 文件下载 ====================
+
+// ==================== 文件分享系统 ====================
+
+interface ShareLink {
+  id: string
+  fileKey: string
+  fileName: string
+  password?: string // PBKDF2 hashed
+  expiresAt?: number // timestamp ms
+  maxDownloads?: number
+  downloads: number
+  createdAt: number
+}
+
+// 创建分享链接
+app.post('/admin/api/share', async (c) => {
+  if (!await checkAuth(c)) return c.json({ error: 'Unauthorized' }, 401)
+  const { fileKey, password, expiresIn, maxDownloads } = await c.req.json()
+  
+  if (!fileKey) return c.json({ error: 'Missing fileKey' }, 400)
+  
+  // Verify file exists
+  const files: any[] = await getData(c.env.KV, 'files', [])
+  const file = files.find((f: any) => f.key === fileKey)
+  if (!file) return c.json({ error: 'File not found' }, 404)
+  
+  const shareId = crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+  const share: ShareLink = {
+    id: shareId,
+    fileKey,
+    fileName: file.displayName || file.originalName || fileKey,
+    downloads: 0,
+    createdAt: Date.now(),
+  }
+  
+  // Hash password if provided
+  if (password && password.trim()) {
+    share.password = await hashPassword(password.trim())
+  }
+  
+  // Set expiration
+  if (expiresIn && expiresIn > 0) {
+    share.expiresAt = Date.now() + expiresIn * 1000 // expiresIn is seconds
+  }
+  
+  // Set max downloads
+  if (maxDownloads && maxDownloads > 0) {
+    share.maxDownloads = maxDownloads
+  }
+  
+  // Store share data
+  const shares: ShareLink[] = JSON.parse(await kvGet(c.env.KV, 'shares') || '[]')
+  shares.push(share)
+  await kvPut(c.env.KV, 'shares', JSON.stringify(shares))
+  
+  const shareUrl = `/s/${shareId}`
+  return c.json({ ok: true, shareId, shareUrl, share })
+})
+
+// 获取分享列表
+app.get('/admin/api/shares', async (c) => {
+  if (!await checkAuth(c)) return c.json({ error: 'Unauthorized' }, 401)
+  const shares: ShareLink[] = JSON.parse(await kvGet(c.env.KV, 'shares') || '[]')
+  return c.json({ shares })
+})
+
+// 删除分享链接
+app.post('/admin/api/share/delete', async (c) => {
+  if (!await checkAuth(c)) return c.json({ error: 'Unauthorized' }, 401)
+  const { shareId } = await c.req.json()
+  const shares: ShareLink[] = JSON.parse(await kvGet(c.env.KV, 'shares') || '[]')
+  const newShares = shares.filter(s => s.id !== shareId)
+  await kvPut(c.env.KV, 'shares', JSON.stringify(newShares))
+  return c.json({ ok: true })
+})
+
+// 公开分享页面
+app.get('/s/:id', async (c) => {
+  const lang = parseLang(c.req.header('Cookie'))
+  const shareId = c.req.param('id')
+  const shares: ShareLink[] = JSON.parse(await kvGet(c.env.KV, 'shares') || '[]')
+  const share = shares.find(s => s.id === shareId)
+  
+  if (!share) {
+    return c.html(sharePageHtml(lang, { error: 'notfound' }))
+  }
+  
+  // Check expiration
+  if (share.expiresAt && Date.now() > share.expiresAt) {
+    return c.html(sharePageHtml(lang, { error: 'expired' }))
+  }
+  
+  // Check download limit
+  if (share.maxDownloads && share.downloads >= share.maxDownloads) {
+    return c.html(sharePageHtml(lang, { error: 'maxdownloads' }))
+  }
+  
+  // If password protected, show password form
+  if (share.password) {
+    return c.html(sharePageHtml(lang, { share, needPassword: true }))
+  }
+  
+  // No password required — show download page directly
+  return c.html(sharePageHtml(lang, { share, canDownload: true }))
+})
+
+// 分享文件下载 (验证密码后)
+app.post('/s/:id', async (c) => {
+  const lang = parseLang(c.req.header('Cookie'))
+  const shareId = c.req.param('id')
+  const shares: ShareLink[] = JSON.parse(await kvGet(c.env.KV, 'shares') || '[]')
+  const share = shares.find(s => s.id === shareId)
+  
+  if (!share) return c.html(sharePageHtml(lang, { error: 'notfound' }))
+  if (share.expiresAt && Date.now() > share.expiresAt) return c.html(sharePageHtml(lang, { error: 'expired' }))
+  if (share.maxDownloads && share.downloads >= share.maxDownloads) return c.html(sharePageHtml(lang, { error: 'maxdownloads' }))
+  
+  // Verify password
+  if (share.password) {
+    const body = await c.req.parseBody()
+    const inputPw = (body.password as string) || ''
+    const valid = await verifyPassword(inputPw, share.password)
+    if (!valid) {
+      return c.html(sharePageHtml(lang, { share, needPassword: true, passwordError: true }))
+    }
+  }
+  
+  return c.html(sharePageHtml(lang, { share, canDownload: true }))
+})
+
+// 实际下载（带 token 验证）
+app.get('/s/:id/download', async (c) => {
+  const shareId = c.req.param('id')
+  const token = c.req.query('t')
+  
+  const shares: ShareLink[] = JSON.parse(await kvGet(c.env.KV, 'shares') || '[]')
+  const shareIdx = shares.findIndex(s => s.id === shareId)
+  const share = shareIdx >= 0 ? shares[shareIdx] : null
+  
+  if (!share) return c.text('Share not found', 404)
+  if (share.expiresAt && Date.now() > share.expiresAt) return c.text('Share expired', 410)
+  if (share.maxDownloads && share.downloads >= share.maxDownloads) return c.text('Download limit reached', 410)
+  
+  // Increment download count
+  share.downloads++
+  shares[shareIdx] = share
+  await kvPut(c.env.KV, 'shares', JSON.stringify(shares))
+  
+  // Redirect to the actual file download
+  return c.redirect(`/api/download/${share.fileKey}`)
+})
+
+/** 分享页面 HTML */
+function sharePageHtml(lang: Lang, opts: { error?: string; share?: ShareLink; needPassword?: boolean; passwordError?: boolean; canDownload?: boolean }) {
+  const zh = lang === 'zh'
+  
+  let title = zh ? '文件分享' : 'File Share'
+  let body = ''
+  
+  if (opts.error === 'notfound') {
+    body = `
+      <div class="share-error">
+        <i class="fa-solid fa-circle-xmark"></i>
+        <h2>${zh ? '分享链接不存在' : 'Share link not found'}</h2>
+        <p>${zh ? '该链接可能已被删除或从未存在' : 'This link may have been deleted or never existed'}</p>
+      </div>`
+  } else if (opts.error === 'expired') {
+    body = `
+      <div class="share-error">
+        <i class="fa-solid fa-clock"></i>
+        <h2>${zh ? '分享已过期' : 'Share has expired'}</h2>
+        <p>${zh ? '该分享链接已超过有效期' : 'This share link has exceeded its validity period'}</p>
+      </div>`
+  } else if (opts.error === 'maxdownloads') {
+    body = `
+      <div class="share-error">
+        <i class="fa-solid fa-ban"></i>
+        <h2>${zh ? '下载次数已达上限' : 'Download limit reached'}</h2>
+        <p>${zh ? '该文件的下载次数已用完' : 'The download count for this file has been exhausted'}</p>
+      </div>`
+  } else if (opts.needPassword) {
+    const errorHtml = opts.passwordError ? `<div class="share-pw-error">${zh ? '密码错误，请重试' : 'Incorrect password, please try again'}</div>` : ''
+    body = `
+      <div class="share-password">
+        <i class="fa-solid fa-lock"></i>
+        <h2>${zh ? '此文件需要密码访问' : 'This file requires a password'}</h2>
+        <p class="share-filename"><i class="fa-solid fa-file"></i> ${opts.share!.fileName}</p>
+        ${errorHtml}
+        <form method="POST" class="share-pw-form">
+          <input type="password" name="password" placeholder="${zh ? '输入访问密码' : 'Enter access password'}" autofocus required />
+          <button type="submit"><i class="fa-solid fa-unlock"></i> ${zh ? '验证' : 'Verify'}</button>
+        </form>
+      </div>`
+  } else if (opts.canDownload) {
+    const share = opts.share!
+    const remaining = share.maxDownloads ? `${share.maxDownloads - share.downloads}` : '∞'
+    const expiresText = share.expiresAt 
+      ? new Date(share.expiresAt).toLocaleString(zh ? 'zh-CN' : 'en-US') 
+      : (zh ? '永不过期' : 'Never')
+    
+    body = `
+      <div class="share-download">
+        <i class="fa-solid fa-file-arrow-down"></i>
+        <h2>${share.fileName}</h2>
+        <div class="share-meta">
+          <span><i class="fa-solid fa-download"></i> ${zh ? '剩余下载次数' : 'Remaining'}: ${remaining}</span>
+          <span><i class="fa-solid fa-clock"></i> ${zh ? '过期时间' : 'Expires'}: ${expiresText}</span>
+        </div>
+        <a href="/s/${share.id}/download" class="share-dl-btn">
+          <i class="fa-solid fa-download"></i> ${zh ? '下载文件' : 'Download File'}
+        </a>
+      </div>`
+  }
+  
+  return `<!DOCTYPE html>
+<html lang="${zh ? 'zh-CN' : 'en'}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <link href="/static/fontawesome.css" rel="stylesheet">
+  <link href="/static/style.css" rel="stylesheet">
+  <style>
+    .share-page { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; background:var(--bg-primary); }
+    .share-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:48px; max-width:440px; width:100%; text-align:center; box-shadow:var(--shadow-lg); }
+    .share-card i.fa-solid { font-size:3rem; margin-bottom:16px; color:var(--accent); }
+    .share-card h2 { margin:0 0 12px; color:var(--text-primary); font-size:1.3rem; word-break:break-all; }
+    .share-card p { color:var(--text-secondary); margin:0 0 20px; font-size:0.9rem; }
+    .share-error i { color:#EF4444 !important; }
+    .share-filename { font-weight:600; color:var(--text-primary) !important; }
+    .share-pw-error { background:rgba(239,68,68,0.1); color:#EF4444; padding:8px 16px; border-radius:8px; margin-bottom:16px; font-size:0.85rem; }
+    .share-pw-form { display:flex; flex-direction:column; gap:12px; }
+    .share-pw-form input { padding:12px 16px; border:1px solid var(--border); border-radius:10px; background:var(--bg-primary); color:var(--text-primary); font-size:1rem; outline:none; transition:border-color 0.2s; }
+    .share-pw-form input:focus { border-color:var(--accent); }
+    .share-pw-form button { padding:12px; border:none; border-radius:10px; background:var(--accent); color:white; font-size:1rem; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:opacity 0.2s; }
+    .share-pw-form button:hover { opacity:0.9; }
+    .share-meta { display:flex; flex-direction:column; gap:6px; margin:16px 0 24px; font-size:0.85rem; color:var(--text-secondary); }
+    .share-meta span { display:flex; align-items:center; justify-content:center; gap:6px; }
+    .share-dl-btn { display:inline-flex; align-items:center; gap:10px; padding:14px 32px; background:var(--accent); color:white; text-decoration:none; border-radius:12px; font-size:1.05rem; font-weight:600; transition:opacity 0.2s, transform 0.1s; }
+    .share-dl-btn:hover { opacity:0.9; transform:translateY(-1px); }
+    .share-dl-btn:active { transform:scale(0.98); }
+  </style>
+  <script>
+    // Apply saved theme
+    const t = localStorage.getItem('portal-theme') || (window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+    document.documentElement.setAttribute('data-theme', t);
+  </script>
+</head>
+<body>
+  <div class="share-page">
+    <div class="share-card">${body}</div>
+  </div>
+</body>
+</html>`
+}
 
 // ==================== GitHub Trending — Token 优先 + 爬取兜底 ====================
 const CACHE_TTL = 3600 // 数据缓存 1 小时
@@ -804,11 +1060,26 @@ app.post('/admin/login', async (c) => {
   
   // Rate limiting check
   if (!checkLoginRateLimit(ip)) {
-    return c.render(adminPage('login', { error: lang === 'zh' ? '尝试次数过多，请5分钟后再试' : 'Too many attempts, try again in 5 minutes', lang }), { title: lang === 'zh' ? '后台登录' : 'Admin Login', lang })
+    return c.render(adminPage('login', { error: t('adminLogin', 'tooMany', lang), lang }), { title: lang === 'zh' ? '后台登录' : 'Admin Login', lang })
   }
   
   const body = await c.req.parseBody()
+  const username = sanitize((body.username as string) || '')
   const password = sanitize((body.password as string) || '')
+  
+  // Get stored username (default: admin)
+  let storedUsername = await kvGet(c.env.KV, 'admin_username')
+  if (!storedUsername) {
+    storedUsername = 'admin'
+    await kvPut(c.env.KV, 'admin_username', storedUsername)
+  }
+  
+  // Verify username first
+  if (username !== storedUsername) {
+    recordLoginAttempt(ip)
+    // Generic error message to avoid username enumeration
+    return c.render(adminPage('login', { error: t('adminLogin', 'wrongPw', lang), lang }), { title: lang === 'zh' ? '后台登录' : 'Admin Login', lang })
+  }
   
   let storedPw = await kvGet(c.env.KV, 'admin_password')
   
@@ -833,7 +1104,8 @@ app.post('/admin/login', async (c) => {
   }
   
   const sessionId = crypto.randomUUID()
-  await kvPut(c.env.KV, 'session:' + sessionId, '1', { expirationTtl: 86400 })
+  // Session expires in 24 hours
+  await kvPut(c.env.KV, 'session:' + sessionId, JSON.stringify({ ip, createdAt: Date.now() }), { expirationTtl: 86400 })
   return new Response(null, {
     status: 302,
     headers: { 'Location': '/admin', 'Set-Cookie': `portal_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=86400` }
@@ -1008,9 +1280,27 @@ app.post('/admin/api/password', async (c) => {
   const valid = await verifyPassword(sanitize(oldPassword || ''), stored)
   if (!valid) return c.json({ error: lang === 'zh' ? '旧密码错误' : 'Incorrect old password' }, 400)
   
+  if (!newPassword || newPassword.length < 6) {
+    return c.json({ error: lang === 'zh' ? '新密码至少6位' : 'New password must be at least 6 characters' }, 400)
+  }
+  
   // Hash the new password before storing
   const hashedNew = await hashPassword(sanitize(newPassword || ''))
   await kvPut(c.env.KV, 'admin_password', hashedNew)
+  return c.json({ ok: true })
+})
+
+app.post('/admin/api/username', async (c) => {
+  if (!await checkAuth(c)) return c.json({ error: 'Unauthorized' }, 401)
+  const lang = parseLang(c.req.header('Cookie'))
+  const { newUsername } = await c.req.json()
+  
+  if (!newUsername || newUsername.trim().length < 2) {
+    return c.json({ error: lang === 'zh' ? '用户名至少2位' : 'Username must be at least 2 characters' }, 400)
+  }
+  
+  const clean = sanitize(newUsername.trim())
+  await kvPut(c.env.KV, 'admin_username', clean)
   return c.json({ ok: true })
 })
 

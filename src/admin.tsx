@@ -21,14 +21,17 @@ function loginView({ error }: { error?: string; lang?: Lang }, lang: Lang) {
         {error && <div class="adm-alert adm-alert-err">{error}</div>}
         <form method="POST" action="/admin/login" class="adm-login-form">
           <div class="adm-field">
+            <label>{t('adminLogin', 'username', lang)}</label>
+            <input type="text" name="username" placeholder={t('adminLogin', 'usernamePlaceholder', lang)} autofocus required autocomplete="username" />
+          </div>
+          <div class="adm-field">
             <label>{t('adminLogin', 'password', lang)}</label>
-            <input type="password" name="password" placeholder={t('adminLogin', 'placeholder', lang)} autofocus required />
+            <input type="password" name="password" placeholder={t('adminLogin', 'placeholder', lang)} required autocomplete="current-password" />
           </div>
           <button type="submit" class="adm-btn adm-btn-primary adm-btn-full">
             <i class="fa-solid fa-arrow-right-to-bracket"></i> {t('adminLogin', 'signIn', lang)}
           </button>
         </form>
-        <p class="adm-login-hint">{t('adminLogin', 'hint', lang)}</p>
         <a href="/" class="adm-login-back">
           <i class="fa-solid fa-arrow-left"></i> {lang === 'zh' ? '返回首页' : 'Back to Home'}
         </a>
@@ -55,6 +58,7 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
           <a href="#panel-websites" class="adm-nav-item" data-tab="websites"><i class="fa-solid fa-globe"></i> {t('admin', 'websitesTab', lang)}</a>
           <a href="#panel-repos" class="adm-nav-item" data-tab="repos"><i class="fa-brands fa-github"></i> {t('admin', 'githubTab', lang)}</a>
           <a href="#panel-files" class="adm-nav-item" data-tab="files"><i class="fa-solid fa-cloud-arrow-up"></i> {t('admin', 'filesTab', lang)}</a>
+          <a href="#panel-shares" class="adm-nav-item" data-tab="shares"><i class="fa-solid fa-share-nodes"></i> {lang === 'zh' ? '分享管理' : 'Shares'}</a>
           <a href="#panel-tokens" class="adm-nav-item" data-tab="tokens"><i class="fa-solid fa-key"></i> {t('admin', 'githubTokens', lang)}</a>
           <a href="#panel-settings" class="adm-nav-item" data-tab="settings"><i class="fa-solid fa-gear"></i> {t('admin', 'settingsTab', lang)}</a>
         </nav>
@@ -195,6 +199,21 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* ===== Shares ===== */}
+        <section id="panel-shares" class="adm-panel">
+          <div class="adm-panel-header">
+            <h2><i class="fa-solid fa-share-nodes"></i> {lang === 'zh' ? '分享管理' : 'Share Management'}</h2>
+          </div>
+          <div class="adm-card">
+            <p class="adm-card-desc">{lang === 'zh' ? '管理所有文件分享链接，可查看状态和删除' : 'Manage all file share links, view status and delete'}</p>
+            <div id="sharesListContainer">
+              <div style="text-align:center;padding:20px;color:var(--text-secondary)">
+                <i class="fa-solid fa-spinner fa-spin"></i> {lang === 'zh' ? '加载中...' : 'Loading...'}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -358,10 +377,20 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
           </div>
 
           <div class="adm-card">
-            <h3 class="adm-card-title"><i class="fa-solid fa-key"></i> {t('admin', 'changePassword', lang)}</h3>
+            <h3 class="adm-card-title"><i class="fa-solid fa-shield-halved"></i> {t('admin', 'changePassword', lang)}</h3>
             <div class="adm-form-grid">
-              <div class="adm-field"><label>{t('admin', 'currentPw', lang)}</label><input id="set-oldpw" type="password" /></div>
-              <div class="adm-field"><label>{t('admin', 'newPw', lang)}</label><input id="set-newpw" type="password" /></div>
+              <div class="adm-field">
+                <label>{t('admin', 'changeUsername', lang)}</label>
+                <input id="set-newUsername" type="text" placeholder={t('admin', 'newUsername', lang)} />
+              </div>
+              <div class="adm-field">
+                <button class="adm-btn adm-btn-primary" id="changeUsername" style="margin-top:24px"><i class="fa-solid fa-user-pen"></i> {t('admin', 'updateUsername', lang)}</button>
+              </div>
+            </div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:20px 0" />
+            <div class="adm-form-grid">
+              <div class="adm-field"><label>{t('admin', 'currentPw', lang)}</label><input id="set-oldpw" type="password" autocomplete="current-password" /></div>
+              <div class="adm-field"><label>{t('admin', 'newPw', lang)}</label><input id="set-newpw" type="password" autocomplete="new-password" /></div>
             </div>
             <button class="adm-btn adm-btn-primary" id="changePw" style="margin-top:16px"><i class="fa-solid fa-key"></i> {t('admin', 'updatePw', lang)}</button>
           </div>

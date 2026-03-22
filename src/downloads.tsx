@@ -25,7 +25,7 @@ function fileIcon(type: string): string {
   return 'fa-solid fa-file'
 }
 
-export function downloadsPage(files: any[], lang: Lang = 'zh') {
+export function downloadsPage(files: any[], lang: Lang = 'zh', isAdmin: boolean = false) {
   const totalSize = files.reduce((a: number, f: any) => a + (f.size || 0), 0)
 
   const content = (
@@ -89,12 +89,19 @@ export function downloadsPage(files: any[], lang: Lang = 'zh') {
                     {file.storageType === 'local' && <span class="download-badge local">{lang === 'zh' ? '本地存储' : 'Local'}</span>}
                   </div>
                 </div>
-                <a href={`/api/download/${file.key}`}
-                   class="download-btn"
-                   title={t('home', 'download', lang)}>
-                  <i class="fa-solid fa-download"></i>
-                  <span>{t('home', 'download', lang)}</span>
-                </a>
+                <div class="download-actions">
+                  {isAdmin && (
+                    <button class="share-btn" data-filekey={file.key} data-filename={file.displayName || file.originalName || file.key} title={lang === 'zh' ? '分享' : 'Share'}>
+                      <i class="fa-solid fa-share-nodes"></i>
+                    </button>
+                  )}
+                  <a href={`/api/download/${file.key}`}
+                     class="download-btn"
+                     title={t('home', 'download', lang)}>
+                    <i class="fa-solid fa-download"></i>
+                    <span>{t('home', 'download', lang)}</span>
+                  </a>
+                </div>
               </div>
             </div>
           )
@@ -106,6 +113,52 @@ export function downloadsPage(files: any[], lang: Lang = 'zh') {
         <i class="fa-solid fa-magnifying-glass"></i>
         <p>{lang === 'zh' ? '没有找到匹配的文件' : 'No matching files found'}</p>
       </div>
+
+      {/* Share Modal (only for admin) */}
+      {isAdmin && (
+        <div id="shareModal" class="share-modal-overlay" style="display:none">
+          <div class="share-modal">
+            <div class="share-modal-header">
+              <h3><i class="fa-solid fa-share-nodes"></i> {lang === 'zh' ? '创建分享链接' : 'Create Share Link'}</h3>
+              <button id="shareModalClose" class="share-modal-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="share-modal-body">
+              <p class="share-modal-filename" id="shareFileName"></p>
+              <div class="share-form-field">
+                <label><i class="fa-solid fa-lock"></i> {lang === 'zh' ? '访问密码（可选）' : 'Access Password (optional)'}</label>
+                <input type="text" id="sharePassword" placeholder={lang === 'zh' ? '留空则无需密码' : 'Leave empty for no password'} />
+              </div>
+              <div class="share-form-field">
+                <label><i class="fa-solid fa-clock"></i> {lang === 'zh' ? '有效期' : 'Expiration'}</label>
+                <select id="shareExpires">
+                  <option value="0">{lang === 'zh' ? '永不过期' : 'Never'}</option>
+                  <option value="3600">{lang === 'zh' ? '1小时' : '1 hour'}</option>
+                  <option value="86400">{lang === 'zh' ? '1天' : '1 day'}</option>
+                  <option value="604800">{lang === 'zh' ? '7天' : '7 days'}</option>
+                  <option value="2592000">{lang === 'zh' ? '30天' : '30 days'}</option>
+                </select>
+              </div>
+              <div class="share-form-field">
+                <label><i class="fa-solid fa-download"></i> {lang === 'zh' ? '最大下载次数（0=不限）' : 'Max Downloads (0=unlimited)'}</label>
+                <input type="number" id="shareMaxDownloads" min="0" value="0" />
+              </div>
+            </div>
+            <div class="share-modal-footer">
+              <button id="shareCreateBtn" class="share-create-btn">
+                <i class="fa-solid fa-link"></i> {lang === 'zh' ? '生成分享链接' : 'Generate Share Link'}
+              </button>
+            </div>
+            {/* Result area */}
+            <div id="shareResult" class="share-result" style="display:none">
+              <label>{lang === 'zh' ? '分享链接' : 'Share Link'}</label>
+              <div class="share-result-row">
+                <input type="text" id="shareUrl" readonly />
+                <button id="shareCopyBtn" class="share-copy-btn"><i class="fa-solid fa-copy"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 
