@@ -1,7 +1,9 @@
-/** admin.tsx — 后台管理面板 (with i18n) */
+/** admin.tsx — Admin panel (with i18n, safe JSON injection, announcements) */
 import { raw } from 'hono/html'
 import type { Lang } from './i18n'
 import { t } from './i18n'
+import { safeJsonStringify } from './lib/auth'
+import type { Announcement } from './types'
 
 export function adminPage(page: 'login' | 'dashboard', data: any) {
   const lang: Lang = data.lang || 'zh'
@@ -40,10 +42,11 @@ function loginView({ error }: { error?: string; lang?: Lang }, lang: Lang) {
   )
 }
 
-function dashboardView({ profile, websites, repos, files, settings, lang: dataLang }: any, lang: Lang) {
+function dashboardView({ profile, websites, repos, files, settings, lang: dataLang, announcements }: any, lang: Lang) {
   const st = settings || { storageMode: 'kv', maxFileSize: 25 }
   const otherLang = lang === 'zh' ? 'en' : 'zh'
   const langLabel = lang === 'zh' ? 'EN' : '中'
+  const anns: Announcement[] = announcements || []
 
   return (
     <div class="adm">
@@ -58,7 +61,8 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
           <a href="#panel-websites" class="adm-nav-item" data-tab="websites"><i class="fa-solid fa-globe"></i> {t('admin', 'websitesTab', lang)}</a>
           <a href="#panel-repos" class="adm-nav-item" data-tab="repos"><i class="fa-brands fa-github"></i> {t('admin', 'githubTab', lang)}</a>
           <a href="#panel-files" class="adm-nav-item" data-tab="files"><i class="fa-solid fa-cloud-arrow-up"></i> {t('admin', 'filesTab', lang)}</a>
-          <a href="#panel-shares" class="adm-nav-item" data-tab="shares"><i class="fa-solid fa-share-nodes"></i> {lang === 'zh' ? '分享管理' : 'Shares'}</a>
+          <a href="#panel-shares" class="adm-nav-item" data-tab="shares"><i class="fa-solid fa-share-nodes"></i> {t('admin', 'sharesTab', lang)}</a>
+          <a href="#panel-announcements" class="adm-nav-item" data-tab="announcements"><i class="fa-solid fa-bullhorn"></i> {t('admin', 'announcementsTab', lang)}</a>
           <a href="#panel-tokens" class="adm-nav-item" data-tab="tokens"><i class="fa-solid fa-key"></i> {t('admin', 'githubTokens', lang)}</a>
           <a href="#panel-settings" class="adm-nav-item" data-tab="settings"><i class="fa-solid fa-gear"></i> {t('admin', 'settingsTab', lang)}</a>
         </nav>
@@ -205,14 +209,52 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
         {/* ===== Shares ===== */}
         <section id="panel-shares" class="adm-panel">
           <div class="adm-panel-header">
-            <h2><i class="fa-solid fa-share-nodes"></i> {lang === 'zh' ? '分享管理' : 'Share Management'}</h2>
+            <h2><i class="fa-solid fa-share-nodes"></i> {t('admin', 'sharesTab', lang)}</h2>
           </div>
           <div class="adm-card">
-            <p class="adm-card-desc">{lang === 'zh' ? '管理所有文件分享链接，可查看状态和删除' : 'Manage all file share links, view status and delete'}</p>
+            <p class="adm-card-desc">{t('admin', 'sharesDesc', lang)}</p>
             <div id="sharesListContainer">
               <div style="text-align:center;padding:20px;color:var(--text-secondary)">
                 <i class="fa-solid fa-spinner fa-spin"></i> {lang === 'zh' ? '加载中...' : 'Loading...'}
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ===== Announcements ===== */}
+        <section id="panel-announcements" class="adm-panel">
+          <div class="adm-panel-header">
+            <h2><i class="fa-solid fa-bullhorn"></i> {t('admin', 'announcementsTab', lang)}</h2>
+            <button class="adm-btn adm-btn-primary" id="addAnnouncement"><i class="fa-solid fa-plus"></i> {t('admin', 'add', lang)}</button>
+          </div>
+          <div class="adm-card">
+            <p class="adm-card-desc">{t('admin', 'announcementsDesc', lang)}</p>
+            <div id="announcementsList" class="adm-items">
+              {anns.length === 0 && (
+                <div style="text-align:center;padding:20px;color:var(--text-secondary)">
+                  <i class="fa-solid fa-bullhorn" style="font-size:2rem;margin-bottom:8px;display:block;opacity:0.5"></i>
+                  {lang === 'zh' ? '暂无公告' : 'No announcements yet'}
+                </div>
+              )}
+              {anns.map((a: Announcement) => (
+                <div class="adm-item" data-ann-id={a.id} key={a.id}>
+                  <div class="adm-item-icon" style={`color:${a.type === 'warning' ? '#F59E0B' : a.type === 'success' ? '#22C55E' : 'var(--accent)'}`}>
+                    <i class={`fa-solid ${a.type === 'warning' ? 'fa-triangle-exclamation' : a.type === 'success' ? 'fa-circle-check' : 'fa-circle-info'}`}></i>
+                  </div>
+                  <div class="adm-item-body">
+                    <strong>{a.content.length > 60 ? a.content.slice(0, 60) + '...' : a.content}</strong>
+                    <span class="adm-item-sub">
+                      <span style={`color:${a.enabled ? '#22C55E' : '#EF4444'};font-weight:600`}>{a.enabled ? (lang === 'zh' ? '启用' : 'Active') : (lang === 'zh' ? '禁用' : 'Disabled')}</span>
+                      · {a.type}
+                      {a.expiresAt ? ` · ${lang === 'zh' ? '过期' : 'Expires'}: ${new Date(a.expiresAt).toLocaleString()}` : ''}
+                    </span>
+                  </div>
+                  <div class="adm-item-actions">
+                    <button class="adm-btn-icon toggle-announcement" title={lang === 'zh' ? '启用/禁用' : 'Toggle'}><i class={`fa-solid ${a.enabled ? 'fa-eye-slash' : 'fa-eye'}`}></i></button>
+                    <button class="adm-btn-icon adm-btn-icon-danger delete-announcement" title={t('admin', 'delete', lang)}><i class="fa-solid fa-trash"></i></button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -222,8 +264,6 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
           <div class="adm-panel-header">
             <h2><i class="fa-solid fa-key"></i> {t('admin', 'githubTokens', lang)}</h2>
           </div>
-
-          {/* How it works */}
           <div class="adm-card adm-token-how">
             <h3 class="adm-card-title"><i class="fa-solid fa-lightbulb"></i> {t('admin', 'tokenHowItWorks', lang)}</h3>
             <ul class="adm-token-how-list">
@@ -233,49 +273,26 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
               <li><i class="fa-solid fa-gauge-high"></i> {t('admin', 'tokenHowDesc4', lang)}</li>
             </ul>
           </div>
-
-          {/* Token Status (loaded via JS) */}
           <div class="adm-card" id="tokenStatusCard">
             <h3 class="adm-card-title"><i class="fa-solid fa-chart-bar"></i> {t('admin', 'tokenStatus', lang)}</h3>
-            <div id="tokenStatusContent" class="adm-token-status-loading">
-              <i class="fa-solid fa-spinner fa-spin"></i> Loading...
-            </div>
+            <div id="tokenStatusContent" class="adm-token-status-loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
           </div>
-
-          {/* Token Pool Management */}
           <div class="adm-card">
             <h3 class="adm-card-title"><i class="fa-solid fa-database"></i> {t('admin', 'tokenPool', lang)}</h3>
             <p class="adm-card-desc">{t('admin', 'githubTokensDesc', lang)}</p>
-            <div id="tokenListContainer" class="adm-token-list">
-              {/* Tokens will be rendered by JS */}
-            </div>
+            <div id="tokenListContainer" class="adm-token-list"></div>
             <div class="adm-token-add-row" style="margin-top: 12px">
               <input type="text" id="newTokenInput" class="adm-token-input" placeholder={t('admin', 'tokenPlaceholder', lang)} />
-              <button class="adm-btn adm-btn-primary" id="addTokenBtn">
-                <i class="fa-solid fa-plus"></i> {t('admin', 'addToken', lang)}
-              </button>
+              <button class="adm-btn adm-btn-primary" id="addTokenBtn"><i class="fa-solid fa-plus"></i> {t('admin', 'addToken', lang)}</button>
             </div>
-            <button class="adm-btn adm-btn-primary" id="saveTokensBtn" style="margin-top: 16px">
-              <i class="fa-solid fa-save"></i> {t('admin', 'saveTokens', lang)}
-            </button>
+            <button class="adm-btn adm-btn-primary" id="saveTokensBtn" style="margin-top: 16px"><i class="fa-solid fa-save"></i> {t('admin', 'saveTokens', lang)}</button>
           </div>
-
-          {/* Rate limit info */}
           <div class="adm-card">
             <h3 class="adm-card-title"><i class="fa-solid fa-gauge-high"></i> {t('admin', 'rateLimitConfig', lang)}</h3>
             <div class="adm-status-grid">
-              <div class="adm-status-item">
-                <span class="adm-status-label">{t('admin', 'perIpLimit', lang)}</span>
-                <span class="adm-status-value">30 {t('admin', 'perIpLimit', lang).includes('次') ? '次' : 'times'}</span>
-              </div>
-              <div class="adm-status-item">
-                <span class="adm-status-label">{t('admin', 'cacheDuration', lang)}</span>
-                <span class="adm-status-value">1 {t('admin', 'hour', lang)}</span>
-              </div>
-              <div class="adm-status-item">
-                <span class="adm-status-label">{t('admin', 'tokenCooldownTime', lang)}</span>
-                <span class="adm-status-value">10 {t('admin', 'minutes', lang)}</span>
-              </div>
+              <div class="adm-status-item"><span class="adm-status-label">{t('admin', 'perIpLimit', lang)}</span><span class="adm-status-value">30 {lang === 'zh' ? '次' : 'times'}</span></div>
+              <div class="adm-status-item"><span class="adm-status-label">{t('admin', 'cacheDuration', lang)}</span><span class="adm-status-value">1 {t('admin', 'hour', lang)}</span></div>
+              <div class="adm-status-item"><span class="adm-status-label">{t('admin', 'tokenCooldownTime', lang)}</span><span class="adm-status-value">10 {t('admin', 'minutes', lang)}</span></div>
             </div>
           </div>
         </section>
@@ -285,8 +302,6 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
           <div class="adm-panel-header">
             <h2><i class="fa-solid fa-gear"></i> {t('admin', 'settingsTitle', lang)}</h2>
           </div>
-
-          {/* Storage Status */}
           <div class="adm-card adm-storage-status">
             <h3 class="adm-card-title"><i class="fa-solid fa-chart-pie"></i> {t('admin', 'storageStatus', lang)}</h3>
             <div class="adm-status-grid">
@@ -296,26 +311,10 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
                   {st.storageMode === 'kv' ? t('admin', 'kvStorage', lang) : st.storageMode === 'local' ? t('admin', 'localStorage', lang) : t('admin', 'externalLinks', lang)}
                 </span>
               </div>
-              {st.storageMode === 'local' && st.localServerUrl && (
-                <div class="adm-status-item">
-                  <span class="adm-status-label">{t('admin', 'serverAddress', lang)}</span>
-                  <span class="adm-status-value adm-status-mono">{st.localServerUrl}</span>
-                </div>
-              )}
-              {st.storageMode === 'local' && st.localStoragePath && (
-                <div class="adm-status-item">
-                  <span class="adm-status-label">{t('admin', 'storagePath', lang)}</span>
-                  <span class="adm-status-value adm-status-mono">{st.localStoragePath}</span>
-                </div>
-              )}
-              <div class="adm-status-item">
-                <span class="adm-status-label">{t('admin', 'fileCount', lang)}</span>
-                <span class="adm-status-value">{files.length}</span>
-              </div>
-              <div class="adm-status-item">
-                <span class="adm-status-label">{t('admin', 'totalSize', lang)}</span>
-                <span class="adm-status-value">{formatSize(files.reduce((a: number, f: any) => a + (f.size || 0), 0))}</span>
-              </div>
+              {st.storageMode === 'local' && st.localServerUrl && (<div class="adm-status-item"><span class="adm-status-label">{t('admin', 'serverAddress', lang)}</span><span class="adm-status-value adm-status-mono">{st.localServerUrl}</span></div>)}
+              {st.storageMode === 'local' && st.localStoragePath && (<div class="adm-status-item"><span class="adm-status-label">{t('admin', 'storagePath', lang)}</span><span class="adm-status-value adm-status-mono">{st.localStoragePath}</span></div>)}
+              <div class="adm-status-item"><span class="adm-status-label">{t('admin', 'fileCount', lang)}</span><span class="adm-status-value">{files.length}</span></div>
+              <div class="adm-status-item"><span class="adm-status-label">{t('admin', 'totalSize', lang)}</span><span class="adm-status-value">{formatSize(files.reduce((a: number, f: any) => a + (f.size || 0), 0))}</span></div>
             </div>
           </div>
 
@@ -325,67 +324,31 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
             <div class="adm-radio-group" id="storageModeGroup">
               <label class={`adm-radio-card ${st.storageMode === 'kv' ? 'active' : ''}`}>
                 <input type="radio" name="storageMode" value="kv" checked={st.storageMode === 'kv'} />
-                <div class="adm-radio-card-body">
-                  <div class="adm-radio-icon"><i class="fa-solid fa-database"></i></div>
-                  <div>
-                    <strong>{t('admin', 'kvStorage', lang)}</strong>
-                    <span>{t('admin', 'kvDesc', lang)}</span>
-                  </div>
-                </div>
+                <div class="adm-radio-card-body"><div class="adm-radio-icon"><i class="fa-solid fa-database"></i></div><div><strong>{t('admin', 'kvStorage', lang)}</strong><span>{t('admin', 'kvDesc', lang)}</span></div></div>
               </label>
               <label class={`adm-radio-card ${st.storageMode === 'local' ? 'active' : ''}`}>
                 <input type="radio" name="storageMode" value="local" checked={st.storageMode === 'local'} />
-                <div class="adm-radio-card-body">
-                  <div class="adm-radio-icon"><i class="fa-solid fa-server"></i></div>
-                  <div>
-                    <strong>{t('admin', 'localStorage', lang)}</strong>
-                    <span>{t('admin', 'localDesc', lang)}</span>
-                  </div>
-                </div>
+                <div class="adm-radio-card-body"><div class="adm-radio-icon"><i class="fa-solid fa-server"></i></div><div><strong>{t('admin', 'localStorage', lang)}</strong><span>{t('admin', 'localDesc', lang)}</span></div></div>
               </label>
               <label class={`adm-radio-card ${st.storageMode === 'external' ? 'active' : ''}`}>
                 <input type="radio" name="storageMode" value="external" checked={st.storageMode === 'external'} />
-                <div class="adm-radio-card-body">
-                  <div class="adm-radio-icon"><i class="fa-solid fa-link"></i></div>
-                  <div>
-                    <strong>{t('admin', 'externalLinks', lang)}</strong>
-                    <span>{t('admin', 'externalDesc', lang)}</span>
-                  </div>
-                </div>
+                <div class="adm-radio-card-body"><div class="adm-radio-icon"><i class="fa-solid fa-link"></i></div><div><strong>{t('admin', 'externalLinks', lang)}</strong><span>{t('admin', 'externalDesc', lang)}</span></div></div>
               </label>
             </div>
-
-            {/* Local storage config fields */}
             <div class="adm-local-config" id="localConfig" style={st.storageMode === 'local' ? '' : 'display:none'}>
               <div class="adm-form-grid" style="margin-top:16px">
-                <div class="adm-field adm-field-full">
-                  <label>{t('admin', 'localServerUrl', lang)}</label>
-                  <input id="set-localServerUrl" value={st.localServerUrl || ''} placeholder="http://192.168.1.100:8080" />
-                  <span class="adm-field-hint">{t('admin', 'localServerUrlHint', lang)}</span>
-                </div>
-                <div class="adm-field adm-field-full">
-                  <label>{t('admin', 'localStoragePath', lang)}</label>
-                  <input id="set-localStoragePath" value={st.localStoragePath || '/data/portal/files'} placeholder="/data/portal/files" />
-                  <span class="adm-field-hint">{t('admin', 'localStoragePathHint', lang)}</span>
-                </div>
+                <div class="adm-field adm-field-full"><label>{t('admin', 'localServerUrl', lang)}</label><input id="set-localServerUrl" value={st.localServerUrl || ''} placeholder="http://192.168.1.100:8080" /><span class="adm-field-hint">{t('admin', 'localServerUrlHint', lang)}</span></div>
+                <div class="adm-field adm-field-full"><label>{t('admin', 'localStoragePath', lang)}</label><input id="set-localStoragePath" value={st.localStoragePath || '/data/portal/files'} placeholder="/data/portal/files" /><span class="adm-field-hint">{t('admin', 'localStoragePathHint', lang)}</span></div>
               </div>
             </div>
-
-            <button class="adm-btn adm-btn-primary" id="saveSettings" style="margin-top:16px">
-              <i class="fa-solid fa-save"></i> {t('admin', 'saveStorage', lang)}
-            </button>
+            <button class="adm-btn adm-btn-primary" id="saveSettings" style="margin-top:16px"><i class="fa-solid fa-save"></i> {t('admin', 'saveStorage', lang)}</button>
           </div>
 
           <div class="adm-card">
             <h3 class="adm-card-title"><i class="fa-solid fa-shield-halved"></i> {t('admin', 'changePassword', lang)}</h3>
             <div class="adm-form-grid">
-              <div class="adm-field">
-                <label>{t('admin', 'changeUsername', lang)}</label>
-                <input id="set-newUsername" type="text" placeholder={t('admin', 'newUsername', lang)} />
-              </div>
-              <div class="adm-field">
-                <button class="adm-btn adm-btn-primary" id="changeUsername" style="margin-top:24px"><i class="fa-solid fa-user-pen"></i> {t('admin', 'updateUsername', lang)}</button>
-              </div>
+              <div class="adm-field"><label>{t('admin', 'changeUsername', lang)}</label><input id="set-newUsername" type="text" placeholder={t('admin', 'newUsername', lang)} /></div>
+              <div class="adm-field"><button class="adm-btn adm-btn-primary" id="changeUsername" style="margin-top:24px"><i class="fa-solid fa-user-pen"></i> {t('admin', 'updateUsername', lang)}</button></div>
             </div>
             <hr style="border:none;border-top:1px solid var(--border);margin:20px 0" />
             <div class="adm-form-grid">
@@ -400,28 +363,23 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
       {/* Modal */}
       <div class="adm-modal-overlay" id="modalOverlay" style="display:none">
         <div class="adm-modal" id="modal">
-          <div class="adm-modal-header">
-            <h3 id="modalTitle">{t('admin', 'edit', lang)}</h3>
-            <button class="adm-btn-icon" id="modalClose"><i class="fa-solid fa-xmark"></i></button>
-          </div>
+          <div class="adm-modal-header"><h3 id="modalTitle">{t('admin', 'edit', lang)}</h3><button class="adm-btn-icon" id="modalClose"><i class="fa-solid fa-xmark"></i></button></div>
           <div class="adm-modal-body" id="modalBody"></div>
-          <div class="adm-modal-footer">
-            <button class="adm-btn" id="modalCancel">{t('admin', 'cancel', lang)}</button>
-            <button class="adm-btn adm-btn-primary" id="modalSave">{t('admin', 'save', lang)}</button>
-          </div>
+          <div class="adm-modal-footer"><button class="adm-btn" id="modalCancel">{t('admin', 'cancel', lang)}</button><button class="adm-btn adm-btn-primary" id="modalSave">{t('admin', 'save', lang)}</button></div>
         </div>
       </div>
-
       <div class="adm-toast-container" id="toastContainer"></div>
 
+      {/* SAFE JSON injection — prevents </script> XSS */}
       {raw(`<script>
-        window.__DATA__ = {
-          websites: ${JSON.stringify(websites)},
-          repos: ${JSON.stringify(repos)},
-          files: ${JSON.stringify(files)},
-          settings: ${JSON.stringify(st)},
-          lang: "${lang}"
-        };
+        window.__DATA__ = ${safeJsonStringify({
+          websites,
+          repos,
+          files,
+          settings: st,
+          lang,
+          announcements: anns,
+        })};
       </script>`)}
       <script src="/static/admin.js"></script>
     </div>

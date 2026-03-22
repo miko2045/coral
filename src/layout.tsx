@@ -55,7 +55,7 @@ export function pageLayout({ lang, activePage, children }: LayoutProps) {
               <span class="lang-label">{langLabel}</span>
             </a>
             <button class="header-icon-btn theme-toggle" id="themeToggle" aria-label="Toggle theme">
-              <i class="fa-solid fa-sun"></i>
+              <i class="fa-solid fa-circle-half-stroke"></i>
             </button>
             <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu">
               <span class="hamburger-line"></span>

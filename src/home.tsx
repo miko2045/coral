@@ -2,8 +2,9 @@
 import type { Lang } from './i18n'
 import { t } from './i18n'
 import { pageLayout } from './layout'
+import type { Announcement } from './types'
 
-export function homePage(profile: any, websites: any[], repos: any[], files: any[], lang: Lang = 'zh') {
+export function homePage(profile: any, websites: any[], repos: any[], files: any[], lang: Lang = 'zh', announcements: Announcement[] = []) {
   const totalStars = repos.reduce((a: number, r: any) => a + (r.stars || 0), 0)
 
   const greeting = lang === 'zh' ? '你好，我是' : "Hi, I'm"
@@ -11,6 +12,19 @@ export function homePage(profile: any, websites: any[], repos: any[], files: any
 
   const content = (
     <main class="home-main">
+      {/* ===== ANNOUNCEMENTS BANNER ===== */}
+      {announcements.length > 0 && (
+        <div class="announcements-bar" data-aos="0">
+          {announcements.map((ann) => (
+            <div class={`announcement-item announcement-${ann.type}`} key={ann.id}>
+              <i class={`fa-solid ${ann.type === 'warning' ? 'fa-triangle-exclamation' : ann.type === 'success' ? 'fa-circle-check' : 'fa-circle-info'}`}></i>
+              <span>{ann.content}</span>
+              <button class="announcement-close" data-ann-id={ann.id} aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ===== SIDE DECORATIONS (widescreen) ===== */}
       <div class="home-side-decor home-side-decor-left">
         <div class="side-orb side-orb-1"></div>

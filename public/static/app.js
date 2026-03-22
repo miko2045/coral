@@ -81,18 +81,31 @@
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
 
   function getTheme() {
-    return localStorage.getItem('portal-theme') || (prefersDark.matches ? 'dark' : 'light');
+    const stored = localStorage.getItem('portal-theme');
+    if (stored === 'auto' || !stored) return prefersDark.matches ? 'dark' : 'light';
+    return stored;
+  }
+
+  function getThemeMode() {
+    return localStorage.getItem('portal-theme') || 'auto';
   }
 
   function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('portal-theme', theme);
+    const mode = theme; // 'light', 'dark', or 'auto'
+    localStorage.setItem('portal-theme', mode);
+    const actual = mode === 'auto' ? (prefersDark.matches ? 'dark' : 'light') : mode;
+    document.documentElement.setAttribute('data-theme', actual);
     document.querySelectorAll('.theme-toggle i').forEach(icon => {
-      icon.className = theme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+      icon.className = mode === 'auto' ? 'fa-solid fa-circle-half-stroke' : actual === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
     });
   }
 
-  applyTheme(getTheme());
+  // Listen for system theme changes (for auto mode)
+  prefersDark.addEventListener('change', () => {
+    if (getThemeMode() === 'auto') applyTheme('auto');
+  });
+
+  applyTheme(getThemeMode());
 
   // ==============================================
   //  HEADER SCROLL
@@ -760,6 +773,20 @@
     initTrendingLangFilter();
     initShareModal();
     initAOS();
+    filterDismissedAnnouncements();
+  }
+
+  // Hide previously dismissed announcements
+  function filterDismissedAnnouncements() {
+    const dismissed = JSON.parse(localStorage.getItem('dismissed-announcements') || '[]');
+    if (dismissed.length === 0) return;
+    document.querySelectorAll('.announcement-close').forEach(btn => {
+      const id = btn.getAttribute('data-ann-id');
+      if (id && dismissed.includes(id)) {
+        const item = btn.closest('.announcement-item');
+        if (item) item.style.display = 'none';
+      }
+    });
   }
 
   // ==============================================
@@ -999,13 +1026,36 @@
     // Theme toggle (delegated)
     const themeBtn = e.target.closest('.theme-toggle');
     if (themeBtn) {
-      const cur = document.documentElement.getAttribute('data-theme') || 'light';
-      applyTheme(cur === 'dark' ? 'light' : 'dark');
+      const mode = getThemeMode();
+      // Cycle: light → dark → auto → light
+      const next = mode === 'light' ? 'dark' : mode === 'dark' ? 'auto' : 'light';
+      applyTheme(next);
       return;
     }
 
     // Language toggle (delegated) — smooth crossfade then reload
     const langBtn = e.target.closest('.lang-toggle');
+
+    // Announcement close button
+    const annClose = e.target.closest('.announcement-close');
+    if (annClose) {
+      const item = annClose.closest('.announcement-item');
+      if (item) {
+        item.style.opacity = '0';
+        item.style.transform = 'translateY(-10px)';
+        item.style.transition = 'all 0.3s ease';
+        setTimeout(() => item.remove(), 300);
+        // Remember dismissed announcements
+        const id = annClose.getAttribute('data-ann-id');
+        if (id) {
+          const dismissed = JSON.parse(localStorage.getItem('dismissed-announcements') || '[]');
+          dismissed.push(id);
+          localStorage.setItem('dismissed-announcements', JSON.stringify(dismissed));
+        }
+      }
+      return;
+    }
+
     if (langBtn) {
       e.preventDefault();
       const newLang = lang === 'zh' ? 'en' : 'zh';

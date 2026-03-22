@@ -16,6 +16,23 @@ const PORT = process.env.FILE_SERVER_PORT || 8899;
 const DEFAULT_STORAGE = process.env.FILE_STORAGE_PATH || '/data/portal/files';
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB max
 
+// Authentication: Shared secret between Cloudflare Worker and this server
+// Set via environment variable or will be auto-generated on first run
+const AUTH_SECRET = process.env.FILE_SERVER_SECRET || '';
+const AUTH_HEADER = 'x-fileserver-secret';
+
+// Verify auth if secret is configured
+function checkAuth(req, res) {
+  if (!AUTH_SECRET) return true; // No secret configured = open (legacy)
+  const provided = req.headers[AUTH_HEADER];
+  if (!provided || provided !== AUTH_SECRET) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Unauthorized: Invalid or missing X-FileServer-Secret header' }));
+    return false;
+  }
+  return true;
+}
+
 // Ensure storage directory exists
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) {
@@ -62,10 +79,10 @@ function parseMultipart(buffer, boundary) {
 }
 
 const server = http.createServer(async (req, res) => {
-  // CORS headers (only allow local)
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', `Content-Type, ${AUTH_HEADER}`);
   
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -82,8 +99,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   
-  // Upload file
+  // Upload file (requires auth)
   if (req.method === 'POST' && url.pathname === '/upload') {
+    if (!checkAuth(req, res)) return;
     const contentType = req.headers['content-type'] || '';
     const boundaryMatch = contentType.match(/boundary=(.+)/);
     
@@ -141,8 +159,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   
-  // Download file — serve files from storage path
+  // Download file — serve files from storage path (requires auth)
   if (req.method === 'GET' && url.pathname.startsWith('/data/')) {
+    if (!checkAuth(req, res)) return;
     const filePath = decodeURIComponent(url.pathname);
     
     // Security: prevent path traversal
@@ -168,8 +187,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   
-  // List files
+  // List files (requires auth)
   if (req.method === 'GET' && url.pathname === '/list') {
+    if (!checkAuth(req, res)) return;
     const dir = url.searchParams.get('path') || DEFAULT_STORAGE;
     try {
       ensureDir(dir);
@@ -186,8 +206,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   
-  // Delete file
+  // Delete file (requires auth)
   if (req.method === 'POST' && url.pathname === '/delete') {
+    if (!checkAuth(req, res)) return;
     const chunks = [];
     req.on('data', chunk => chunks.push(chunk));
     req.on('end', () => {
@@ -225,5 +246,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`[FileServer] Listening on http://127.0.0.1:${PORT}`);
   console.log(`[FileServer] Storage path: ${DEFAULT_STORAGE}`);
+  console.log(`[FileServer] Auth: ${AUTH_SECRET ? 'ENABLED (secret configured)' : 'DISABLED (no secret, set FILE_SERVER_SECRET env var)'}`);
   ensureDir(DEFAULT_STORAGE);
 });

@@ -811,4 +811,69 @@
     });
   });
 
+  // ==============================================
+  //  ANNOUNCEMENTS
+  // ==============================================
+  const addAnnBtn = document.getElementById('addAnnouncement');
+  if (addAnnBtn) {
+    addAnnBtn.addEventListener('click', () => {
+      const isZh = D.lang === 'zh';
+      openModal(isZh ? '添加公告' : 'Add Announcement', `
+        <div class="adm-field"><label>${isZh ? '内容' : 'Content'}</label><textarea id="ann-content" rows="3" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);resize:vertical" placeholder="${isZh ? '公告内容...' : 'Announcement content...'}"></textarea></div>
+        <div class="adm-field"><label>${isZh ? '类型' : 'Type'}</label>
+          <select id="ann-type" style="padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);width:100%">
+            <option value="info">${isZh ? '信息 (蓝色)' : 'Info (blue)'}</option>
+            <option value="warning">${isZh ? '警告 (黄色)' : 'Warning (yellow)'}</option>
+            <option value="success">${isZh ? '成功 (绿色)' : 'Success (green)'}</option>
+          </select></div>
+        <div class="adm-field"><label>${isZh ? '过期时间 (可选)' : 'Expiration (optional)'}</label>
+          <select id="ann-expires" style="padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);width:100%">
+            <option value="0">${isZh ? '永不过期' : 'Never'}</option>
+            <option value="3600000">${isZh ? '1 小时' : '1 hour'}</option>
+            <option value="86400000">${isZh ? '1 天' : '1 day'}</option>
+            <option value="604800000">${isZh ? '7 天' : '7 days'}</option>
+            <option value="2592000000">${isZh ? '30 天' : '30 days'}</option>
+          </select></div>
+      `, async () => {
+        const content = document.getElementById('ann-content')?.value?.trim();
+        const type = document.getElementById('ann-type')?.value || 'info';
+        const expiresMs = parseInt(document.getElementById('ann-expires')?.value || '0');
+        if (!content) return toast(isZh ? '请输入内容' : 'Please enter content', 'error');
+        try {
+          const payload = { content, type, enabled: true };
+          if (expiresMs > 0) payload.expiresAt = Date.now() + expiresMs;
+          await api('/admin/api/announcements', payload);
+          closeModal();
+          toast(isZh ? '公告已创建!' : 'Announcement created!');
+          location.reload();
+        } catch (e) { toast(e.message, 'error'); }
+      });
+    });
+  }
+
+  // Toggle and delete announcements
+  document.addEventListener('click', (e) => {
+    const toggleBtn = e.target.closest('.toggle-announcement');
+    if (toggleBtn) {
+      const item = toggleBtn.closest('[data-ann-id]');
+      if (item) {
+        const id = item.dataset.annId;
+        api('/admin/api/announcements/toggle', { id }).then(() => location.reload()).catch(e => toast(e.message, 'error'));
+      }
+    }
+    const deleteBtn = e.target.closest('.delete-announcement');
+    if (deleteBtn) {
+      const isZh = D.lang === 'zh';
+      if (!confirm(isZh ? '确定删除此公告?' : 'Delete this announcement?')) return;
+      const item = deleteBtn.closest('[data-ann-id]');
+      if (item) {
+        const id = item.dataset.annId;
+        api('/admin/api/announcements/delete', { id }).then(() => {
+          item.remove();
+          toast(isZh ? '已删除!' : 'Deleted!');
+        }).catch(e => toast(e.message, 'error'));
+      }
+    }
+  });
+
 })();

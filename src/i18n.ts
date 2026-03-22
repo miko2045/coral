@@ -49,6 +49,10 @@ export const translations = {
     githubTab: { zh: 'GitHub', en: 'GitHub' },
     filesTab: { zh: '文件', en: 'Files' },
     settingsTab: { zh: '设置', en: 'Settings' },
+    sharesTab: { zh: '分享管理', en: 'Shares' },
+    sharesDesc: { zh: '管理所有文件分享链接', en: 'Manage all file sharing links' },
+    announcementsTab: { zh: '公告', en: 'Announcements' },
+    announcementsDesc: { zh: '创建和管理首页公告', en: 'Create and manage homepage announcements' },
     viewSite: { zh: '查看站点', en: 'View Site' },
     logout: { zh: '退出', en: 'Logout' },
 

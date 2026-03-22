@@ -3499,3 +3499,55 @@ a { text-decoration: none; color: inherit; }
   transition: var(--transition);
 }
 .share-copy-btn:hover { background: var(--accent); color: white; }
+
+/* ==================== Announcements Bar ==================== */
+.announcements-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  width: 100%;
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.announcement-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  animation: slideDown 0.3s ease;
+  position: relative;
+}
+.announcement-item i:first-child { flex-shrink: 0; font-size: 1rem; }
+.announcement-item span { flex: 1; }
+.announcement-close {
+  background: none; border: none; cursor: pointer; padding: 4px 8px;
+  opacity: 0.5; transition: opacity 0.2s; color: inherit; font-size: 0.85rem;
+}
+.announcement-close:hover { opacity: 1; }
+.announcement-info {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: var(--text-primary);
+}
+.announcement-info i:first-child { color: #3B82F6; }
+.announcement-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: var(--text-primary);
+}
+.announcement-warning i:first-child { color: #F59E0B; }
+.announcement-success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  color: var(--text-primary);
+}
+.announcement-success i:first-child { color: #22C55E; }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
