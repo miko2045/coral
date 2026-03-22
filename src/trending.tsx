@@ -108,7 +108,11 @@ export function trendingPage(
                     <i class="fa-solid fa-circle-dot"></i> {formatNumber(repo.open_issues_count)}
                   </span>
                 )}
-                {repo.created_at && (
+                {repo.created_at && (() => {
+                  const created = new Date(repo.created_at).getTime()
+                  const days = Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24))
+                  return days <= 365
+                })() && (
                 <span class="trending-meta-item trending-meta-time">
                   <i class="fa-solid fa-clock"></i> {timeAgo(repo.created_at, lang)}
                 </span>
