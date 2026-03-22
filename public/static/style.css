@@ -15,6 +15,7 @@ a, button, [role="button"], .nav-link, .filter-tag, .trending-tab,
 }
 
 :root {
+  color-scheme: light only;
   /* 阳光自然色系 */
   --bg: #FBF8F3;
   --bg-card: #FFFFFF;
@@ -44,6 +45,7 @@ a, button, [role="button"], .nav-link, .filter-tag, .trending-tab,
 
 /* Dark mode */
 [data-theme="dark"] {
+  color-scheme: dark only;
   --bg: #0F0F0F;
   --bg-card: #1A1A1A;
   --bg-card-hover: #222222;

@@ -113,6 +113,8 @@
     // No animation on initial load (clickEvent === null)
     if (!clickEvent) {
       document.documentElement.setAttribute('data-theme', actual);
+      document.documentElement.style.colorScheme = actual === 'dark' ? 'dark only' : 'light only';
+      document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', actual === 'dark' ? 'dark only' : 'light only');
       document.querySelectorAll('.theme-toggle i').forEach(i => i.className = iconClass);
       return;
     }
@@ -139,6 +141,8 @@
     // Phase 2: switch theme while overlay covers screen
     setTimeout(() => {
       document.documentElement.setAttribute('data-theme', actual);
+      document.documentElement.style.colorScheme = actual === 'dark' ? 'dark only' : 'light only';
+      document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', actual === 'dark' ? 'dark only' : 'light only');
     }, 200);
 
     // Phase 3: fade out overlay
