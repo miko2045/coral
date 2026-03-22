@@ -195,7 +195,42 @@ async function resolveProvinceFromIP(ip: string): Promise<string> {
     }
   } catch {}
 
-  // Fallback: try ip-api.com (free, works globally, 45 req/min limit)
+  // Fallback: try 太平洋网 IP API (works well from Chinese servers)
+  if (!prov) {
+    try {
+      const res = await fetch(
+        `https://whois.pconline.com.cn/ipJson.jsp?ip=${ip}&json=true`,
+        { signal: AbortSignal.timeout(3000) }
+      )
+      if (res.ok) {
+        // Response is GBK-encoded, but province names are in ASCII-compatible range
+        const text = await res.text()
+        try {
+          const json = JSON.parse(text) as any
+          const pro: string = json?.pro || '' // e.g. "湖北省"
+          const addr: string = json?.addr || '' // e.g. "湖北省武汉市"
+          if (pro) {
+            prov = extractProvince(pro)
+          }
+          if (!prov && addr) {
+            prov = extractProvince(addr)
+          }
+          // If API returned data but no province (foreign IP), check addr
+          if (!prov && addr && !addr.includes('中国') && addr.length > 0) {
+            prov = '海外'
+          }
+        } catch {
+          // JSON parse failed, try regex extraction from text
+          const proMatch = text.match(/"pro"\s*:\s*"([^"]+)"/)
+          if (proMatch) {
+            prov = extractProvince(proMatch[1])
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // Fallback 2: try ip-api.com (works from overseas servers)
   if (!prov) {
     try {
       const res = await fetch(
@@ -226,28 +261,38 @@ async function resolveProvinceFromIP(ip: string): Promise<string> {
   return prov || '未知'
 }
 
-/** Extract province name from Baidu location string */
+/** Extract province name from location string (Baidu / pconline / ip-api) */
 function extractProvince(location: string): string {
   if (!location) return ''
+  // Strip common carrier names to avoid false positives
+  // e.g. "中国 移动", "中国 联通", "中国 电信", "中国 铁通"
+  const carriers = ['移动', '联通', '电信', '铁通', '长城宽带', '鹏博士']
+  let cleaned = location.trim()
+  // If location is ONLY "中国" + carrier (no province info), return empty
+  for (const c of carriers) {
+    if (cleaned === `中国 ${c}` || cleaned === `中国${c}`) return ''
+  }
+  
   // Direct municipality matches
   const municipalities = ['北京', '天津', '上海', '重庆']
   for (const m of municipalities) {
-    if (location.includes(m)) return m
+    if (cleaned.includes(m)) return m
   }
-  // Match "XX省" pattern
-  const provMatch = location.match(/^(.{2,3}?)省/)
+  // Match "XX省" pattern (allow anywhere in string, not just start)
+  const provMatch = cleaned.match(/([\u4e00-\u9fff]{2,3}?)省/)
   if (provMatch) return provMatch[1]
-  // Match autonomous regions
-  const autoMatch = location.match(/^(内蒙古|广西|西藏|宁夏|新疆)/)
+  // Match autonomous regions (allow anywhere)
+  const autoMatch = cleaned.match(/(内蒙古|广西|西藏|宁夏|新疆)/)
   if (autoMatch) return autoMatch[1]
   // Match SARs
-  if (location.includes('香港')) return '香港'
-  if (location.includes('澳门')) return '澳门'
-  if (location.includes('台湾')) return '台湾'
-  // "中国" without province detail — treat as unknown domestic
-  if (location.startsWith('中国')) return ''
+  if (cleaned.includes('香港')) return '香港'
+  if (cleaned.includes('澳门')) return '澳门'
+  if (cleaned.includes('台湾')) return '台湾'
+  // "中国" without province detail — treat as unknown domestic (let fallback handle)
+  if (cleaned.includes('中国')) return ''
   // Anything else is foreign (e.g. "美国", "日本", "澳大利亚") → "海外"
-  return '海外'
+  if (cleaned.length > 0) return '海外'
+  return ''
 }
 
 export default sidebar
