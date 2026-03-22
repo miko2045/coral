@@ -102,121 +102,58 @@
     localStorage.setItem('portal-theme', mode);
     const actual = mode === 'auto' ? (prefersDark.matches ? 'dark' : 'light') : mode;
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-
-    // Update icon immediately
     const iconClass = mode === 'auto' ? 'fa-solid fa-circle-half-stroke' : actual === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
 
-    // If no visual change needed, just update icon
+    // No visual change — just update icon
     if (actual === currentTheme) {
       document.querySelectorAll('.theme-toggle i').forEach(i => i.className = iconClass);
       return;
     }
 
-    // === Circular Reveal Animation ===
-    // Use View Transitions API if supported, else CSS fallback
-    const supportsVT = typeof document.startViewTransition === 'function';
-
-    // Get click origin for the circular reveal
-    let cx, cy;
-    if (clickEvent) {
-      cx = clickEvent.clientX;
-      cy = clickEvent.clientY;
-    } else {
-      // Fallback: use the theme toggle button center
-      const btn = document.querySelector('.theme-toggle');
-      if (btn) {
-        const r = btn.getBoundingClientRect();
-        cx = r.left + r.width / 2;
-        cy = r.top + r.height / 2;
-      } else {
-        cx = window.innerWidth / 2;
-        cy = window.innerHeight / 2;
-      }
+    // No animation on initial load (clickEvent === null)
+    if (!clickEvent) {
+      document.documentElement.setAttribute('data-theme', actual);
+      document.querySelectorAll('.theme-toggle i').forEach(i => i.className = iconClass);
+      return;
     }
 
-    // Calculate max radius for the circle to cover full viewport
-    const maxR = Math.hypot(
-      Math.max(cx, window.innerWidth - cx),
-      Math.max(cy, window.innerHeight - cy)
-    );
+    if (themeAnimating) return;
+    themeAnimating = true;
 
-    if (supportsVT && !themeAnimating) {
-      themeAnimating = true;
+    // Spin icon
+    document.querySelectorAll('.theme-toggle i').forEach(i => {
+      i.className = iconClass + ' theme-icon-spin';
+    });
 
-      // Set custom properties for the animation origin
-      document.documentElement.style.setProperty('--theme-cx', cx + 'px');
-      document.documentElement.style.setProperty('--theme-cy', cy + 'px');
-      document.documentElement.style.setProperty('--theme-r', maxR + 'px');
+    // Lightweight fade overlay — single element, GPU opacity only
+    const overlay = document.createElement('div');
+    overlay.className = 'theme-fade-overlay';
+    overlay.style.background = actual === 'dark' ? '#0F0F0F' : '#FBF8F3';
+    document.body.appendChild(overlay);
 
-      const transition = document.startViewTransition(() => {
-        document.documentElement.setAttribute('data-theme', actual);
-        document.querySelectorAll('.theme-toggle i').forEach(i => {
-          i.className = iconClass;
-          i.classList.add('theme-icon-spin');
-        });
+    // Phase 1: fade in overlay (280ms)
+    requestAnimationFrame(() => {
+      overlay.classList.add('active');
+    });
+
+    // Phase 2: switch theme while overlay covers screen
+    setTimeout(() => {
+      document.documentElement.setAttribute('data-theme', actual);
+    }, 200);
+
+    // Phase 3: fade out overlay
+    setTimeout(() => {
+      overlay.classList.remove('active');
+    }, 320);
+
+    // Cleanup
+    setTimeout(() => {
+      overlay.remove();
+      themeAnimating = false;
+      document.querySelectorAll('.theme-toggle i').forEach(i => {
+        i.classList.remove('theme-icon-spin');
       });
-
-      transition.ready.then(() => {
-        // Animate the circular clip-path on the new snapshot
-        document.documentElement.animate(
-          {
-            clipPath: [
-              `circle(0px at ${cx}px ${cy}px)`,
-              `circle(${maxR}px at ${cx}px ${cy}px)`
-            ]
-          },
-          {
-            duration: 500,
-            easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
-            pseudoElement: '::view-transition-new(root)'
-          }
-        );
-      }).catch(() => {});
-
-      transition.finished.then(() => {
-        themeAnimating = false;
-        document.querySelectorAll('.theme-toggle i').forEach(i => {
-          i.classList.remove('theme-icon-spin');
-        });
-      }).catch(() => { themeAnimating = false; });
-
-    } else if (!themeAnimating) {
-      // === CSS Fallback: overlay fade ===
-      themeAnimating = true;
-
-      // Create a circular overlay
-      const overlay = document.createElement('div');
-      overlay.className = 'theme-circle-overlay';
-      overlay.style.cssText = `
-        position:fixed; top:0; left:0; width:100vw; height:100vh;
-        z-index:999999; pointer-events:none;
-        background: ${actual === 'dark' ? '#0F0F0F' : '#FBF8F3'};
-        clip-path: circle(0px at ${cx}px ${cy}px);
-        transition: clip-path 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-      `;
-      document.body.appendChild(overlay);
-
-      // Trigger the expansion
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          overlay.style.clipPath = `circle(${maxR}px at ${cx}px ${cy}px)`;
-        });
-      });
-
-      // At midpoint, switch theme under the overlay
-      setTimeout(() => {
-        document.documentElement.setAttribute('data-theme', actual);
-        document.querySelectorAll('.theme-toggle i').forEach(i => {
-          i.className = iconClass;
-        });
-      }, 250);
-
-      // After animation completes, remove overlay
-      setTimeout(() => {
-        overlay.remove();
-        themeAnimating = false;
-      }, 550);
-    }
+    }, 600);
   }
 
   // Listen for system theme changes (for auto mode)
