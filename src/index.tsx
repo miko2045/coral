@@ -27,8 +27,8 @@ app.use('*', secureHeaders({
   contentSecurityPolicy: {
     defaultSrc: ["'self'"],
     scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdn.jsdelivr.net"],
-    styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
-    fontSrc: ["'self'", "https://cdn.jsdelivr.net", "https://fonts.gstatic.com"],
+    styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.loli.net"],
+    fontSrc: ["'self'", "https://cdn.jsdelivr.net", "https://gstatic.loli.net", "https://fonts.gstatic.com", "data:"],
     imgSrc: ["'self'", "https:", "data:"],
     connectSrc: ["'self'"],
   },
