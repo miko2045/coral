@@ -726,9 +726,11 @@
       btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
       try {
+        // Get CSRF token from admin data if available
+        const csrfToken = (window.__DATA__ && window.__DATA__.csrfToken) || '';
         const resp = await fetch('/admin/api/share', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
           credentials: 'same-origin',
           body: JSON.stringify({ fileKey: currentFileKey, password, expiresIn, maxDownloads }),
         });

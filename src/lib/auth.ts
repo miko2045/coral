@@ -45,6 +45,17 @@ export function safeJsonStringify(data: any): string {
     .replace(/&/g, '\\u0026')
 }
 
+/** Escape HTML entities to prevent XSS in HTML string interpolation */
+export function escapeHtml(str: string): string {
+  if (!str) return ''
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 // ==================== Login Rate Limiting (KV-backed, survives restarts) ====================
 
 export async function checkLoginRateLimit(kv: KVNamespace | undefined, ip: string): Promise<boolean> {
@@ -109,7 +120,8 @@ export async function recordSharePasswordAttempt(kv: KVNamespace | undefined, ip
 
 export async function checkAuth(c: any): Promise<boolean> {
   const cookie = c.req.header('Cookie') || ''
-  const match = cookie.match(/portal_session=([^;]+)/)
+  // Support both __Host-portal_session (production HTTPS) and portal_session (dev HTTP)
+  const match = cookie.match(/__Host-portal_session=([^;]+)/) || cookie.match(/portal_session=([^;]+)/)
   if (!match) return false
   try {
     const stored = await kvGet(c.env.KV, 'session:' + match[1])
@@ -120,14 +132,33 @@ export async function checkAuth(c: any): Promise<boolean> {
 }
 
 export async function createSession(kv: KVNamespace | undefined, ip: string, userAgent?: string): Promise<string> {
+  // Limit concurrent sessions: invalidate old sessions for this IP
+  // (simple approach: store last 3 sessions per admin)
+  const sessListRaw = await kvGet(kv, 'admin_sessions')
+  let sessList: string[] = sessListRaw ? JSON.parse(sessListRaw) : []
+  // Keep max 3 concurrent sessions
+  const MAX_SESSIONS = 3
+  while (sessList.length >= MAX_SESSIONS) {
+    const old = sessList.shift()
+    if (old) await kvDelete(kv, 'session:' + old)
+  }
   const sessionId = crypto.randomUUID()
   const data: SessionData = { ip, createdAt: Date.now(), userAgent }
   await kvPut(kv, 'session:' + sessionId, JSON.stringify(data), { expirationTtl: 86400 })
+  sessList.push(sessionId)
+  await kvPut(kv, 'admin_sessions', JSON.stringify(sessList), { expirationTtl: 86400 })
   return sessionId
 }
 
 export async function destroySession(kv: KVNamespace | undefined, sessionId: string): Promise<void> {
   await kvDelete(kv, 'session:' + sessionId)
+  // Also remove from session list
+  const sessListRaw = await kvGet(kv, 'admin_sessions')
+  if (sessListRaw) {
+    const sessList: string[] = JSON.parse(sessListRaw)
+    const filtered = sessList.filter(s => s !== sessionId)
+    await kvPut(kv, 'admin_sessions', JSON.stringify(filtered), { expirationTtl: 86400 })
+  }
 }
 
 // ==================== Generate Download Token (one-time, short-lived) ====================
@@ -144,6 +175,23 @@ export async function validateDownloadToken(kv: KVNamespace | undefined, token: 
     await kvDelete(kv, `dl_token:${token}`) // One-time use
   }
   return shareId
+}
+
+// ==================== CSRF Token ====================
+
+export async function generateCsrfToken(kv: KVNamespace | undefined, sessionId: string): Promise<string> {
+  const token = crypto.randomUUID().replace(/-/g, '')
+  await kvPut(kv, `csrf:${sessionId}:${token}`, '1', { expirationTtl: 3600 }) // 1 hour
+  return token
+}
+
+export async function validateCsrfToken(kv: KVNamespace | undefined, sessionId: string, token: string): Promise<boolean> {
+  if (!token || !sessionId) return false
+  const key = `csrf:${sessionId}:${token}`
+  const val = await kvGet(kv, key)
+  if (!val) return false
+  // Don't delete — allow reuse within window (SPA friendly)
+  return true
 }
 
 // ==================== Utility ====================

@@ -4,7 +4,7 @@ import type { AppEnv, FileMeta, ShareLink } from '../types'
 import { DANGEROUS_EXTENSIONS, ALLOWED_MIME_PREFIXES } from '../types'
 import { parseLang, t } from '../i18n'
 import { kvGet, kvPut, kvPutBuffer, kvDelete, getData } from '../lib/kv'
-import { checkAuth, hashPassword, verifyPassword, getClientIP } from '../lib/auth'
+import { checkAuth, hashPassword, verifyPassword, getClientIP, generateCsrfToken, validateCsrfToken } from '../lib/auth'
 import { DEFAULT_PROFILE, DEFAULT_WEBSITES, DEFAULT_REPOS, DEFAULT_SETTINGS, FILE_SERVER_SECRET_HEADER } from '../lib/constants'
 import { validate, ProfileSchema, WebsitesArraySchema, ReposArraySchema, SettingsSchema, PasswordChangeSchema, UsernameChangeSchema, ExternalLinkSchema, AnnouncementSchema, TokensSchema } from '../lib/validation'
 import { adminPage } from '../admin'
@@ -24,6 +24,16 @@ admin.use('/admin/*', async (c, next) => {
     }
     return c.redirect('/admin/login')
   }
+  // CSRF validation for all POST API requests
+  if (c.req.method === 'POST' && c.req.path.startsWith('/admin/api/')) {
+    const csrfToken = c.req.header('X-CSRF-Token') || ''
+    const cookie = c.req.header('Cookie') || ''
+    const match = cookie.match(/__Host-portal_session=([^;]+)/) || cookie.match(/portal_session=([^;]+)/)
+    const sessionId = match ? match[1] : ''
+    if (!await validateCsrfToken(c.env.KV, sessionId, csrfToken)) {
+      return c.json({ error: 'CSRF token invalid or missing' }, 403)
+    }
+  }
   return next()
 })
 
@@ -36,7 +46,12 @@ admin.get('/admin', async (c) => {
   const files = await getData(c.env.KV, 'files', [])
   const settings = await getData(c.env.KV, 'settings', DEFAULT_SETTINGS)
   const announcements: Announcement[] = await getData(c.env.KV, 'announcements', [])
-  return c.render(adminPage('dashboard', { profile, websites, repos, files, settings, lang, announcements }), { title: lang === 'zh' ? '管理面板' : 'Admin Panel', lang })
+  // Generate CSRF token for this session
+  const cookie = c.req.header('Cookie') || ''
+  const match = cookie.match(/__Host-portal_session=([^;]+)/) || cookie.match(/portal_session=([^;]+)/)
+  const sessionId = match ? match[1] : ''
+  const csrfToken = await generateCsrfToken(c.env.KV, sessionId)
+  return c.render(adminPage('dashboard', { profile, websites, repos, files, settings, lang, announcements, csrfToken }), { title: lang === 'zh' ? '管理面板' : 'Admin Panel', lang })
 })
 
 // === Profile API ===

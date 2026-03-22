@@ -50,23 +50,44 @@ pages.get('/downloads', async (c) => {
   return c.render(downloadsPage(files, lang, isAdmin), { title: `${t('home', 'downloadsTitle', lang)} — ${profile.name}`, lang })
 })
 
-// Public data API
+// Public data API (sanitized — no sensitive file keys exposed)
 pages.get('/api/data', async (c) => {
   const profile = await getData(c.env.KV, 'profile', DEFAULT_PROFILE)
   const websites = await getData(c.env.KV, 'websites', DEFAULT_WEBSITES)
   const repos = await getData(c.env.KV, 'repos', DEFAULT_REPOS)
+  // Don't expose file keys in public API (keys allow direct download)
   const files = await getData(c.env.KV, 'files', [])
-  return c.json({ profile, websites, repos, files })
+  const safeFiles = files.map((f: any) => ({
+    displayName: f.displayName,
+    size: f.size,
+    type: f.type,
+    uploadedAt: f.uploadedAt,
+  }))
+  return c.json({ profile, websites, repos, files: safeFiles })
 })
 
-// Language switch
+// Language switch (with open redirect protection)
 pages.get('/api/set-lang', (c) => {
   const lang = c.req.query('lang') === 'en' ? 'en' : 'zh'
-  const referer = c.req.header('Referer') || '/'
+  // Validate Referer to prevent open redirect — only allow same-origin relative paths
+  let redirect = '/'
+  const referer = c.req.header('Referer') || ''
+  if (referer) {
+    try {
+      const refUrl = new URL(referer)
+      const reqUrl = new URL(c.req.url)
+      // Only allow same-origin redirects
+      if (refUrl.origin === reqUrl.origin) {
+        redirect = refUrl.pathname + refUrl.search
+      }
+    } catch {
+      // Invalid URL — use default
+    }
+  }
   return new Response(null, {
     status: 302,
     headers: {
-      'Location': referer,
+      'Location': redirect,
       'Set-Cookie': `portal_lang=${lang}; Path=/; SameSite=Lax; Max-Age=${365 * 24 * 3600}`,
     },
   })

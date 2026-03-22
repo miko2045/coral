@@ -4,11 +4,12 @@
 (() => {
   'use strict';
 
-  const D = window.__DATA__ || { websites: [], repos: [], files: [], settings: {}, lang: 'zh' };
+  const D = window.__DATA__ || { websites: [], repos: [], files: [], settings: {}, lang: 'zh', csrfToken: '' };
   let websites = [...D.websites];
   let repos = [...D.repos];
   let settings = { ...D.settings };
   const lang = D.lang || 'zh';
+  const csrfToken = D.csrfToken || '';
 
   // === i18n strings ===
   const i = {
@@ -54,7 +55,11 @@
     const c = document.getElementById('toastContainer');
     const t = document.createElement('div');
     t.className = `adm-toast adm-toast-${type}`;
-    t.innerHTML = `<i class="fa-solid fa-${type === 'success' ? 'check' : 'triangle-exclamation'}"></i> ${msg}`;
+    // Use textContent to prevent XSS from error messages
+    const icon = document.createElement('i');
+    icon.className = `fa-solid fa-${type === 'success' ? 'check' : 'triangle-exclamation'}`;
+    t.appendChild(icon);
+    t.appendChild(document.createTextNode(' ' + msg));
     c.appendChild(t);
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
   }
@@ -62,7 +67,7 @@
   async function api(url, data) {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
       body: JSON.stringify(data),
     });
     const json = await res.json();
@@ -334,7 +339,7 @@
       try {
         let p = 0;
         const iv = setInterval(() => { p = Math.min(p + Math.random() * 15, 85); progressFill.style.width = p + '%'; }, 300);
-        const res = await fetch('/admin/api/upload', { method: 'POST', body: formData });
+        const res = await fetch('/admin/api/upload', { method: 'POST', body: formData, headers: { 'X-CSRF-Token': csrfToken } });
         clearInterval(iv);
         if (!res.ok) { const e = await res.json(); throw new Error(e.error || i.uploadFailed); }
         progressFill.style.width = '100%';
@@ -749,7 +754,7 @@
           // Use the append endpoint
           const resp = await fetch('/admin/api/github-tokens/add', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
             body: JSON.stringify({ tokens }),
           });
           if (!resp.ok) {
@@ -772,7 +777,7 @@
             });
             const resp = await fetch('/admin/api/github-tokens/remove', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
               body: JSON.stringify({ indices: removedIndices }),
             });
             if (!resp.ok) {

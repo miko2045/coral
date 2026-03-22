@@ -36,11 +36,29 @@ app.use('*', secureHeaders({
     fontSrc: ["'self'", "https://cdn.jsdelivr.net", "https://gstatic.loli.net", "https://fonts.gstatic.com", "data:"],
     imgSrc: ["'self'", "https:", "data:"],
     connectSrc: ["'self'"],
+    objectSrc: ["'none'"],
+    baseUri: ["'self'"],
+    formAction: ["'self'"],
+    frameAncestors: ["'none'"],
   },
   xContentTypeOptions: 'nosniff',
   xFrameOptions: 'DENY',
   referrerPolicy: 'strict-origin-when-cross-origin',
 }))
+
+// 2. Additional security headers
+app.use('*', async (c, next) => {
+  await next()
+  // Permissions-Policy: restrict browser features
+  c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()')
+  // Strengthen HSTS
+  c.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
+  // Prevent caching of sensitive pages
+  if (c.req.path.startsWith('/admin')) {
+    c.header('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+    c.header('Pragma', 'no-cache')
+  }
+})
 
 // 2. Anti-crawler: block aggressive bots on non-API routes
 app.use('*', async (c, next) => {

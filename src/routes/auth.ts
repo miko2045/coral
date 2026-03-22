@@ -63,11 +63,17 @@ auth.post('/admin/login', async (c) => {
   }
 
   const sessionId = await createSession(c.env.KV, ip, c.req.header('User-Agent'))
+  // Use __Host- prefix for production (requires Secure + Path=/)
+  const isSecure = c.req.url.startsWith('https://') || c.req.header('X-Forwarded-Proto') === 'https'
+  const cookieName = isSecure ? '__Host-portal_session' : 'portal_session'
+  const cookieFlags = isSecure 
+    ? `${cookieName}=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=86400`
+    : `portal_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`
   return new Response(null, {
     status: 302,
     headers: {
       'Location': '/admin',
-      'Set-Cookie': `portal_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=86400`,
+      'Set-Cookie': cookieFlags,
     },
   })
 })
@@ -75,11 +81,16 @@ auth.post('/admin/login', async (c) => {
 // Logout
 auth.get('/admin/logout', async (c) => {
   const cookie = c.req.header('Cookie') || ''
-  const match = cookie.match(/portal_session=([^;]+)/)
+  const match = cookie.match(/__Host-portal_session=([^;]+)/) || cookie.match(/portal_session=([^;]+)/)
   if (match) await destroySession(c.env.KV, match[1])
+  // Clear both cookie variants
   return new Response(null, {
     status: 302,
-    headers: { 'Location': '/admin/login', 'Set-Cookie': 'portal_session=; Path=/; Max-Age=0' },
+    headers: [
+      ['Location', '/admin/login'],
+      ['Set-Cookie', 'portal_session=; Path=/; Max-Age=0'],
+      ['Set-Cookie', '__Host-portal_session=; Path=/; Secure; Max-Age=0'],
+    ],
   })
 })
 

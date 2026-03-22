@@ -42,8 +42,9 @@ function loginView({ error }: { error?: string; lang?: Lang }, lang: Lang) {
   )
 }
 
-function dashboardView({ profile, websites, repos, files, settings, lang: dataLang, announcements }: any, lang: Lang) {
+function dashboardView({ profile, websites, repos, files, settings, lang: dataLang, announcements, csrfToken }: any, lang: Lang) {
   const st = settings || { storageMode: 'kv', maxFileSize: 25 }
+  const data = { csrfToken } // preserve for template access
   const otherLang = lang === 'zh' ? 'en' : 'zh'
   const langLabel = lang === 'zh' ? 'EN' : '中'
   const anns: Announcement[] = announcements || []
@@ -379,6 +380,7 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
           settings: st,
           lang,
           announcements: anns,
+          csrfToken: data.csrfToken || '',
         })};
       </script>`)}
       <script src="/static/admin.js"></script>

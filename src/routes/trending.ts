@@ -196,7 +196,7 @@ async function getRisingRepos(kv: KVNamespace | undefined, langFilter: string, t
 }
 
 async function checkTrendingRateLimit(kv: KVNamespace | undefined, ip: string): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
-  const key = `ratelimit:${ip}`
+  const key = `trending_ratelimit:${ip}`
   const raw = await kvGet(kv, key)
   const now = Math.floor(Date.now() / 1000)
   if (raw) {
@@ -278,7 +278,7 @@ trending.get('/trending', async (c) => {
   } catch { /* empty on error */ }
 
   if (!refresh) {
-    const key = `ratelimit:${ip}`
+    const key = `trending_ratelimit:${ip}`
     const raw = await kvGet(c.env.KV, key)
     if (raw) {
       const data = JSON.parse(raw) as { count: number; windowStart: number }

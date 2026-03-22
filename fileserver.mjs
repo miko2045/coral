@@ -78,11 +78,26 @@ function parseMultipart(buffer, boundary) {
   return parts;
 }
 
+// Allowed origins for CORS (restrict to same machine only)
+const ALLOWED_ORIGINS = new Set([
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  `http://localhost:${PORT}`,
+  `http://127.0.0.1:${PORT}`,
+]);
+
 const server = http.createServer(async (req, res) => {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.headers['origin'] || '';
+  // CORS: only allow known origins, NOT wildcard
+  if (ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', `Content-Type, ${AUTH_HEADER}`);
+  res.setHeader('Access-Control-Max-Age', '86400');
+  // Security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
   
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -92,10 +107,11 @@ const server = http.createServer(async (req, res) => {
   
   const url = new URL(req.url, `http://localhost:${PORT}`);
   
-  // Health check
+  // Health check (requires auth to prevent info leak)
   if (url.pathname === '/health') {
+    if (!checkAuth(req, res)) return;
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', storage: DEFAULT_STORAGE }));
+    res.end(JSON.stringify({ status: 'ok' }));
     return;
   }
   
@@ -141,7 +157,9 @@ const server = http.createServer(async (req, res) => {
         }
         
         const storagePath = pathPart?.value || DEFAULT_STORAGE;
-        const filename = filenamePart?.value || filePart.filename || `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+        const rawFilename = filenamePart?.value || filePart.filename || `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+        // Sanitize filename: remove path components and dangerous chars
+        const filename = rawFilename.replace(/[/\\]/g, '_').replace(/\.\./g, '_');
         
         ensureDir(storagePath);
         
@@ -214,6 +232,14 @@ const server = http.createServer(async (req, res) => {
     req.on('end', () => {
       try {
         const { filename, path: storagePath } = JSON.parse(Buffer.concat(chunks).toString());
+        
+        // Validate filename: only allow safe characters
+        if (!filename || /[/\\]/.test(filename) || filename.includes('..')) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid filename' }));
+          return;
+        }
+        
         const dir = storagePath || DEFAULT_STORAGE;
         const filePath = path.join(dir, filename);
         

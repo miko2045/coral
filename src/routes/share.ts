@@ -6,6 +6,7 @@ import { kvGet, kvPut, getData } from '../lib/kv'
 import { checkAuth, hashPassword, verifyPassword, generateShareId, generateDownloadToken, validateDownloadToken, getClientIP, checkSharePasswordLimit, recordSharePasswordAttempt } from '../lib/auth'
 import { validate, ShareCreateSchema } from '../lib/validation'
 import { DEFAULT_SETTINGS } from '../lib/constants'
+import { escapeHtml } from '../lib/auth'
 import type { Lang } from '../i18n'
 
 const share = new Hono<AppEnv>()
@@ -202,7 +203,7 @@ function sharePageHtml(lang: Lang, opts: {
     body = `<div class="share-password">
       <i class="fa-solid fa-lock"></i>
       <h2>${zh ? '此文件需要密码访问' : 'This file requires a password'}</h2>
-      <p class="share-filename"><i class="fa-solid fa-file"></i> ${opts.share!.fileName}</p>
+      <p class="share-filename"><i class="fa-solid fa-file"></i> ${escapeHtml(opts.share!.fileName)}</p>
       ${errorHtml}${rateLimitHtml}
       <form method="POST" class="share-pw-form">
         <input type="password" name="password" placeholder="${zh ? '输入访问密码' : 'Enter access password'}" autofocus required ${opts.rateLimited ? 'disabled' : ''} />
@@ -217,7 +218,7 @@ function sharePageHtml(lang: Lang, opts: {
       : (zh ? '永不过期' : 'Never')
     body = `<div class="share-download">
       <i class="fa-solid fa-file-arrow-down"></i>
-      <h2>${s.fileName}</h2>
+      <h2>${escapeHtml(s.fileName)}</h2>
       <div class="share-meta">
         <span><i class="fa-solid fa-download"></i> ${zh ? '剩余下载次数' : 'Remaining'}: ${remaining}</span>
         <span><i class="fa-solid fa-clock"></i> ${zh ? '过期时间' : 'Expires'}: ${expiresText}</span>
