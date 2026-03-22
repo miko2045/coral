@@ -5,53 +5,43 @@ import { kvGet, kvPut } from '../lib/kv'
 
 const sidebar = new Hono<AppEnv>()
 
-// ==================== VISITOR MAP ====================
-// Record visitor country, return country visit counts
+// ==================== VISITOR MAP (China Provinces) ====================
 sidebar.get('/api/sidebar/visitors', async (c) => {
   const kv = c.env.KV
+  const ip = c.req.header('x-real-ip') || c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || ''
 
-  // Determine country: CF header > X-Real-IP geo lookup > fallback
-  let country = c.req.header('cf-ipcountry') || ''
-  if (!country || country === 'XX') {
-    // Try to resolve from IP using a lightweight approach
-    // Use Accept-Language header as a rough geo hint
-    const ip = c.req.header('x-real-ip') || c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || ''
-    if (ip) {
-      country = await resolveCountryFromIP(ip).catch(() => '')
-    }
+  // Resolve province from IP
+  let province = ''
+  if (ip && ip !== '127.0.0.1' && !ip.startsWith('192.168.') && !ip.startsWith('10.')) {
+    province = await resolveProvinceFromIP(ip).catch(() => '')
   }
-  if (!country || country === 'XX') {
-    // Fallback: guess from Accept-Language header
-    const lang = c.req.header('accept-language') || ''
-    country = guessCountryFromLang(lang)
+  if (!province) {
+    province = '未知'
   }
 
   // Get existing visitor data
-  const raw = await kvGet(kv, 'sidebar:visitors')
-  const data: Record<string, number> = raw ? JSON.parse(raw) : {}
+  const raw = await kvGet(kv, 'sidebar:visitors-v2')
+  const data: { provinces: Record<string, number>; total: number } = raw
+    ? JSON.parse(raw)
+    : { provinces: {}, total: 0 }
 
-  // Increment this country
-  data[country] = (data[country] || 0) + 1
+  // Increment
+  data.provinces[province] = (data.provinces[province] || 0) + 1
+  data.total = (data.total || 0) + 1
 
-  // Save back (no TTL, permanent)
-  await kvPut(kv, 'sidebar:visitors', JSON.stringify(data))
+  // Save
+  await kvPut(kv, 'sidebar:visitors-v2', JSON.stringify(data))
 
-  // Calculate total
-  const total = Object.values(data).reduce((a, b) => a + b, 0)
-
-  return c.json({ countries: data, total })
+  return c.json(data)
 })
 
 // ==================== GUESTBOOK ====================
-// Get messages
 sidebar.get('/api/sidebar/guestbook', async (c) => {
   const raw = await kvGet(c.env.KV, 'sidebar:guestbook')
   const messages: any[] = raw ? JSON.parse(raw) : []
-  // Return latest 50
   return c.json({ messages: messages.slice(-50) })
 })
 
-// Post a message
 sidebar.post('/api/sidebar/guestbook', async (c) => {
   const { text, emoji } = await c.req.json<{ text: string; emoji?: string }>()
 
@@ -62,8 +52,7 @@ sidebar.post('/api/sidebar/guestbook', async (c) => {
     return c.json({ error: 'Message too long (max 60 chars)' }, 400)
   }
 
-  // Rate limit: 1 message per IP per 5 minutes
-  const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown'
+  const ip = c.req.header('x-real-ip') || c.req.header('x-forwarded-for') || 'unknown'
   const ipHash = await hashIP(ip)
   const rlKey = `sidebar:guestbook-rl:${ipHash}`
   const lastPost = await kvGet(c.env.KV, rlKey)
@@ -74,21 +63,23 @@ sidebar.post('/api/sidebar/guestbook', async (c) => {
   const raw = await kvGet(c.env.KV, 'sidebar:guestbook')
   const messages: any[] = raw ? JSON.parse(raw) : []
 
+  // Also get province for the message
+  let province = ''
+  if (ip && ip !== 'unknown') {
+    province = await resolveProvinceFromIP(ip).catch(() => '')
+  }
+
   const msg = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     text: text.trim().slice(0, 60),
     emoji: (emoji || '😊').slice(0, 2),
     time: Date.now(),
-    flag: c.req.header('cf-ipcountry') || 'XX',
+    province: province || '未知',
   }
 
   messages.push(msg)
-
-  // Keep only latest 200 messages
   const trimmed = messages.slice(-200)
   await kvPut(c.env.KV, 'sidebar:guestbook', JSON.stringify(trimmed))
-
-  // Set rate limit (5 min TTL)
   await kvPut(c.env.KV, rlKey, '1', { expirationTtl: 300 })
 
   return c.json({ ok: true, message: msg })
@@ -131,48 +122,34 @@ async function hashIP(ip: string): Promise<string> {
   return Array.from(new Uint8Array(hash)).slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-/** Resolve country from IP via free geo API (with cache) */
-const ipCache = new Map<string, { cc: string; ts: number }>()
-async function resolveCountryFromIP(ip: string): Promise<string> {
-  // Check memory cache (1 hour)
-  const cached = ipCache.get(ip)
-  if (cached && Date.now() - cached.ts < 3600000) return cached.cc
+/** Resolve province from IP via ip-api.com (returns Chinese province name) */
+const ipProvinceCache = new Map<string, { prov: string; ts: number }>()
+async function resolveProvinceFromIP(ip: string): Promise<string> {
+  const cached = ipProvinceCache.get(ip)
+  if (cached && Date.now() - cached.ts < 3600000) return cached.prov
 
   try {
-    // Use ip-api.com free tier (no key needed, 45 req/min)
-    const res = await fetch(`http://ip-api.com/json/${ip}?fields=countryCode`, { signal: AbortSignal.timeout(3000) })
+    const res = await fetch(
+      `http://ip-api.com/json/${ip}?fields=regionName,country&lang=zh-CN`,
+      { signal: AbortSignal.timeout(3000) }
+    )
     if (res.ok) {
-      const data = await res.json() as { countryCode?: string }
-      const cc = data.countryCode || 'XX'
-      ipCache.set(ip, { cc, ts: Date.now() })
-      // Keep cache small
-      if (ipCache.size > 500) {
-        const oldest = [...ipCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0]
-        if (oldest) ipCache.delete(oldest[0])
+      const data = await res.json() as { regionName?: string; country?: string }
+      // ip-api returns regionName in Chinese when lang=zh-CN (e.g. "广东")
+      let prov = data.regionName || ''
+      // Normalize: remove trailing "省"/"市"/"自治区" etc for cleaner display
+      prov = prov.replace(/(省|市|自治区|特别行政区|壮族自治区|回族自治区|维吾尔自治区)$/, '')
+      if (!prov) prov = data.country || '未知'
+
+      ipProvinceCache.set(ip, { prov, ts: Date.now() })
+      if (ipProvinceCache.size > 500) {
+        const oldest = [...ipProvinceCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0]
+        if (oldest) ipProvinceCache.delete(oldest[0])
       }
-      return cc
+      return prov
     }
   } catch {}
-  return 'XX'
-}
-
-/** Guess country from Accept-Language header */
-function guessCountryFromLang(langHeader: string): string {
-  const map: Record<string, string> = {
-    'zh': 'CN', 'ja': 'JP', 'ko': 'KR', 'en-us': 'US', 'en-gb': 'GB',
-    'de': 'DE', 'fr': 'FR', 'es': 'ES', 'pt-br': 'BR', 'pt': 'PT',
-    'ru': 'RU', 'it': 'IT', 'nl': 'NL', 'sv': 'SE', 'pl': 'PL',
-    'uk': 'UA', 'th': 'TH', 'vi': 'VN', 'id': 'ID', 'ms': 'MY',
-    'hi': 'IN', 'ar': 'SA', 'tr': 'TR', 'he': 'IL', 'en': 'US',
-  }
-  const parts = langHeader.toLowerCase().split(',')
-  for (const part of parts) {
-    const lang = part.split(';')[0].trim()
-    if (map[lang]) return map[lang]
-    const prefix = lang.split('-')[0]
-    if (map[prefix]) return map[prefix]
-  }
-  return 'CN' // Default for this Chinese site
+  return '未知'
 }
 
 export default sidebar

@@ -1444,7 +1444,7 @@
       });
     }
 
-    // ========== VISITORS ==========
+    // ========== VISITORS (China Province Map) ==========
     let visitorsLoaded = false;
     async function loadVisitors() {
       if (visitorsLoaded) return;
@@ -1457,39 +1457,55 @@
         const mapEl = document.getElementById('swVisitorMap');
         if (totalEl) totalEl.textContent = data.total || 0;
 
-        // Country flag helper
-        const flag = (cc) => {
-          if (!cc || cc === 'XX' || cc.length !== 2) return '\uD83C\uDF10';
-          return String.fromCodePoint(...[...cc.toUpperCase()].map(c => 0x1F1A5 + c.charCodeAt(0)));
+        const provinces = data.provinces || {};
+
+        // Province positions on a simplified China map (x%, y% in 100x80 viewBox)
+        const provPos = {
+          '北京':[67,30],'天津':[69,33],'上海':[78,50],'重庆':[54,53],
+          '河北':[65,32],'山西':[60,35],'辽宁':[74,24],'吉林':[77,18],
+          '黑龙江':[78,10],'江苏':[74,45],'浙江':[77,52],'安徽':[70,47],
+          '福建':[74,58],'江西':[68,56],'山东':[70,38],'河南':[63,42],
+          '湖北':[60,48],'湖南':[58,56],'广东':[64,66],'海南':[59,76],
+          '四川':[45,50],'贵州':[51,58],'云南':[42,62],'陕西':[55,40],
+          '甘肃':[42,35],'青海':[34,38],'台湾':[78,62],
+          '内蒙古':[55,20],'广西':[55,66],'西藏':[24,42],
+          '宁夏':[50,35],'新疆':[22,22],'香港':[67,70],'澳门':[63,72],
         };
 
-        if (listEl) {
-          const sorted = Object.entries(data.countries || {}).sort((a, b) => b[1] - a[1]);
-          listEl.innerHTML = sorted.map(([cc, count]) =>
-            `<span class="sw-visitor-tag"><span class="flag">${flag(cc)}</span>${cc} ${count}</span>`
-          ).join('');
+        // Draw China map outline (simplified) + province dots
+        if (mapEl) {
+          const maxCount = Math.max(...Object.values(provinces).map(Number), 1);
+          // Simplified China border path
+          const chinaPath = 'M22,18 L30,12 L42,10 L55,8 L65,10 L72,8 L80,10 L82,16 L78,22 L80,28 L75,30 L72,36 L74,40 L78,44 L80,48 L78,54 L76,58 L74,62 L70,66 L66,70 L60,72 L56,76 L54,72 L56,68 L52,64 L48,62 L42,64 L38,60 L40,54 L44,50 L48,44 L50,38 L46,34 L40,32 L34,36 L28,38 L22,40 L18,36 L20,28 L22,22 Z';
+
+          let dots = '';
+          for (const [prov, count] of Object.entries(provinces)) {
+            const pos = provPos[prov];
+            if (!pos) continue;
+            const r = 2.5 + Math.min((Number(count) / maxCount) * 3, 3.5);
+            const opacity = 0.5 + Math.min((Number(count) / maxCount) * 0.5, 0.5);
+            dots += `<circle cx="${pos[0]}" cy="${pos[1]}" r="${r}" fill="var(--accent)" opacity="${opacity}">` +
+              `<animate attributeName="r" values="${r};${r+1.2};${r}" dur="2.5s" repeatCount="indefinite"/>` +
+              `<animate attributeName="opacity" values="${opacity};${Math.min(opacity+0.2,1)};${opacity}" dur="2.5s" repeatCount="indefinite"/>` +
+              `</circle>`;
+            // Province label for top 3
+            dots += `<text x="${pos[0]}" y="${pos[1]+5}" text-anchor="middle" fill="var(--text-tertiary)" font-size="3.2" opacity="0.7">${prov}</text>`;
+          }
+
+          mapEl.innerHTML = `<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg">
+            <path d="${chinaPath}" fill="none" stroke="var(--border)" stroke-width="0.5" opacity="0.6"/>
+            ${dots}
+          </svg>`;
         }
 
-        // Simple SVG world map dots
-        if (mapEl) {
-          const countryPos = {
-            CN: [78,38], US: [20,38], JP: [85,38], KR: [83,37], GB: [48,30], DE: [51,32],
-            FR: [49,34], IN: [72,42], BR: [30,55], AU: [85,58], CA: [18,28], RU: [68,28],
-            SG: [76,50], HK: [80,42], TW: [82,42], NL: [50,31], SE: [52,26], IT: [52,36],
-            ES: [47,37], PL: [53,32], UA: [56,32], TH: [76,45], VN: [78,44], MY: [76,48],
-            ID: [79,52], PH: [82,45], NZ: [92,60], ZA: [55,58], MX: [18,43], AR: [28,60],
-          };
-          const countries = data.countries || {};
-          const maxCount = Math.max(...Object.values(countries), 1);
-          let dots = '';
-          for (const [cc, count] of Object.entries(countries)) {
-            const pos = countryPos[cc];
-            if (!pos) continue;
-            const r = 2 + Math.min((count / maxCount) * 4, 4);
-            const opacity = 0.4 + Math.min((count / maxCount) * 0.6, 0.6);
-            dots += `<circle cx="${pos[0]}%" cy="${pos[1]}%" r="${r}" fill="var(--accent)" opacity="${opacity}"><animate attributeName="r" values="${r};${r+1.5};${r}" dur="2s" repeatCount="indefinite"/></circle>`;
-          }
-          mapEl.innerHTML = `<svg viewBox="0 0 100 70" style="width:100%;height:100%">${dots}</svg>`;
+        // Province list tags (sorted by count)
+        if (listEl) {
+          const sorted = Object.entries(provinces)
+            .filter(([k]) => k !== '未知')
+            .sort((a, b) => Number(b[1]) - Number(a[1]));
+          listEl.innerHTML = sorted.map(([prov, count]) =>
+            `<span class="sw-visitor-tag">${prov} <span class="v-count">${count}</span></span>`
+          ).join('');
         }
       } catch {}
     }

@@ -137,8 +137,10 @@ export function pageLayout({ lang, activePage, children }: LayoutProps) {
             <button class="sw-panel-close"><i class="fa-solid fa-xmark"></i></button>
           </div>
           <div class="sw-panel-body sw-visitors-body">
-            <div class="sw-visitors-total" id="swVisitorTotal">0</div>
-            <div class="sw-visitors-label">{lang === 'zh' ? '位访客' : 'visitors'}</div>
+            <div class="sw-visitors-top">
+              <div class="sw-visitors-total" id="swVisitorTotal">0</div>
+              <div class="sw-visitors-label">{lang === 'zh' ? '位访客' : 'visitors'}</div>
+            </div>
             <div class="sw-visitors-map" id="swVisitorMap"></div>
             <div class="sw-visitors-list" id="swVisitorList"></div>
           </div>
