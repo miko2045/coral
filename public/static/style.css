@@ -3190,37 +3190,19 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* === Language Switch — Smooth Crossfade Overlay === */
-.lang-crossfade-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  background: var(--bg);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+.lang-switch-out {
+  animation: langFadeOut 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
-.lang-crossfade-overlay.active { opacity: 1; pointer-events: all; }
-
-/* Morphing spinner during lang switch */
-.lang-crossfade-overlay::after {
-  content: '';
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 28px; height: 28px;
-  margin: -14px 0 0 -14px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: langSpin 0.8s linear infinite;
-  opacity: 0;
-  transition: opacity 0.2s ease 0.15s;
+.lang-switch-in {
+  animation: langFadeIn 0.35s cubic-bezier(0, 0, 0.2, 1) forwards;
 }
-.lang-crossfade-overlay.active::after { opacity: 1; }
-
-@keyframes langSpin {
-  to { transform: rotate(360deg); }
+@keyframes langFadeOut {
+  0%   { opacity: 1; filter: blur(0); transform: scale(1); }
+  100% { opacity: 0; filter: blur(6px); transform: scale(0.985); }
+}
+@keyframes langFadeIn {
+  0%   { opacity: 0; filter: blur(6px); transform: scale(0.985); }
+  100% { opacity: 1; filter: blur(0); transform: scale(1); }
 }
 
 /* === Trending Responsive === */

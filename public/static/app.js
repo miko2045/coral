@@ -1072,20 +1072,54 @@
       const newLang = lang === 'zh' ? 'en' : 'zh';
       document.cookie = `portal_lang=${newLang}; path=/; max-age=${365 * 24 * 3600}; samesite=lax`;
 
-      // Create smooth crossfade overlay
-      const overlay = document.createElement('div');
-      overlay.className = 'lang-crossfade-overlay';
-      document.body.appendChild(overlay);
-      
-      // Trigger fade-in
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          overlay.classList.add('active');
-        });
-      });
-      
-      // Reload after overlay covers the screen
-      setTimeout(() => { window.location.reload(); }, 400);
+      // Smooth blur-dissolve transition
+      const portal = document.querySelector('.portal') || document.body;
+      portal.classList.add('lang-switch-out');
+
+      // Start fetching new page content during animation
+      const fetchNew = fetch(window.location.href, { credentials: 'same-origin' })
+        .then(r => r.ok ? r.text() : null).catch(() => null);
+
+      // After fade-out, swap content and fade-in
+      setTimeout(async () => {
+        const html = await fetchNew;
+        if (html) {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          // Swap head elements that change (title)
+          const newTitle = doc.querySelector('title');
+          if (newTitle) document.title = newTitle.textContent;
+          // Swap body content
+          document.body.innerHTML = doc.body.innerHTML;
+          document.body.setAttribute('data-lang', newLang);
+          document.documentElement.setAttribute('lang', newLang === 'zh' ? 'zh-CN' : 'en');
+          // Restore theme
+          const actual = getTheme();
+          document.documentElement.setAttribute('data-theme', actual);
+          // Fade in
+          const newPortal = document.querySelector('.portal') || document.body;
+          newPortal.classList.add('lang-switch-in');
+          setTimeout(() => newPortal.classList.remove('lang-switch-in'), 400);
+          // Re-init all behaviors
+          lang = newLang;
+          initHeaderScroll();
+          initMobileMenu();
+          initNavIndicator();
+          initHeroClock();
+          initCardHovers();
+          initStatCountUp();
+          initDownloadSearch();
+          initTrendingFeatures();
+          initAOS();
+          initPageBehaviors();
+          attachSPALinks();
+          // Update all pages cache
+          Object.keys(allPagesCache).forEach(k => delete allPagesCache[k]);
+          eagerPrefetchAllRoutes();
+        } else {
+          window.location.reload();
+        }
+      }, 320);
       return;
     }
   });
