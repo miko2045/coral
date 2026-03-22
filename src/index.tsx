@@ -12,7 +12,10 @@ import type { Lang } from './i18n'
 
 type Bindings = {
   KV: KVNamespace
-  GITHUB_TOKENS?: string // 环境变量/Secret: 逗号分隔的 GitHub tokens
+  GITHUB_TOKENS?: string // 环境变量/Secret: 逗号分隔的 GitHub PAT tokens
+  GITHUB_APP_ID?: string // GitHub App ID
+  GITHUB_APP_PRIVATE_KEY?: string // GitHub App Private Key (PEM)
+  GITHUB_APP_INSTALLATION_ID?: string // GitHub App Installation ID
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -262,15 +265,96 @@ function parseNum(s: string | undefined): number {
 
 // ---------- 方案 A: GitHub Search API (需要 Token) ----------
 
-/** 从 KV + 环境变量 读取 token 列表 + 冷却状态 */
-async function getTokenPool(kv: KVNamespace | undefined, envTokens?: string) {
+// ===== GitHub App 自动 Token 刷新 (永不过期!) =====
+// 原理: App Private Key 永不过期 → 自动生成 JWT → 换取 1h Installation Token → 缓存 50min
+let _appTokenCache: { token: string; expiresAt: number } | null = null
+
+/** Base64URL 编码 */
+function base64url(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/** 用 Web Crypto API 生成 GitHub App JWT (Cloudflare Workers 兼容) */
+async function generateJWT(appId: string, privateKeyPem: string): Promise<string> {
+  const now = Math.floor(Date.now() / 1000)
+  const header = { alg: 'RS256', typ: 'JWT' }
+  const payload = { iat: now - 60, exp: now + 600, iss: appId } // 有效期 10 分钟
+
+  const enc = new TextEncoder()
+  const headerB64 = base64url(enc.encode(JSON.stringify(header)))
+  const payloadB64 = base64url(enc.encode(JSON.stringify(payload)))
+  const signingInput = `${headerB64}.${payloadB64}`
+
+  // 解析 PEM 私钥
+  const pemBody = privateKeyPem
+    .replace(/-----BEGIN RSA PRIVATE KEY-----/g, '')
+    .replace(/-----END RSA PRIVATE KEY-----/g, '')
+    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+    .replace(/-----END PRIVATE KEY-----/g, '')
+    .replace(/\s+/g, '')
+  const binaryDer = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0))
+
+  // 判断是 PKCS#8 还是 PKCS#1 格式
+  const isPKCS8 = privateKeyPem.includes('BEGIN PRIVATE KEY')
+  const key = await crypto.subtle.importKey(
+    isPKCS8 ? 'pkcs8' : 'pkcs8', // Cloudflare Workers 只支持 pkcs8
+    binaryDer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+
+  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, enc.encode(signingInput))
+  return `${signingInput}.${base64url(signature)}`
+}
+
+/** 用 JWT 换取 GitHub App Installation Access Token (有效期 1h) */
+async function getInstallationToken(appId: string, privateKey: string, installationId: string): Promise<string | null> {
+  // 检查缓存 (50 分钟内复用)
+  if (_appTokenCache && Date.now() < _appTokenCache.expiresAt) {
+    return _appTokenCache.token
+  }
+
+  try {
+    const jwt = await generateJWT(appId, privateKey)
+    const resp = await fetch(`https://api.github.com/app/installations/${installationId}/access_tokens`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'Authorization': `Bearer ${jwt}`,
+        'User-Agent': 'portal-trending-app',
+      },
+    })
+
+    if (!resp.ok) return null
+    const data = await resp.json() as { token: string; expires_at: string }
+    // 缓存 50 分钟 (token 有效期 1 小时, 留 10 分钟余量)
+    _appTokenCache = { token: data.token, expiresAt: Date.now() + 50 * 60 * 1000 }
+    return data.token
+  } catch {
+    return null
+  }
+}
+
+/** 从 KV + 环境变量 + GitHub App 自动刷新 读取 token 列表 + 冷却状态 */
+async function getTokenPool(kv: KVNamespace | undefined, envTokens?: string, appConfig?: { appId?: string; privateKey?: string; installationId?: string }) {
   // 1. KV 里 admin 配置的 tokens
   const raw = await kvGet(kv, 'github_tokens')
   const tokens: string[] = raw ? JSON.parse(raw) : []
-  // 2. 合并环境变量里的 tokens
+  // 2. 合并环境变量里的 PAT tokens
   if (envTokens) {
     for (const t of envTokens.split(',').map(s => s.trim()).filter(Boolean)) {
       if (!tokens.includes(t)) tokens.push(t)
+    }
+  }
+  // 3. GitHub App 自动刷新 token (永不过期!)
+  if (appConfig?.appId && appConfig?.privateKey && appConfig?.installationId) {
+    const appToken = await getInstallationToken(appConfig.appId, appConfig.privateKey, appConfig.installationId)
+    if (appToken && !tokens.includes(appToken)) {
+      tokens.unshift(appToken) // 优先使用 App Token
     }
   }
   const cdRaw = await kvGet(kv, 'github_token_cooldowns')
@@ -293,9 +377,17 @@ function pickToken(pool: { tokens: string[]; cooldowns: Record<string, number>; 
   return null
 }
 
+/** Token 配置类型 */
+interface TokenConfig {
+  envTokens?: string
+  appId?: string
+  privateKey?: string
+  installationId?: string
+}
+
 /** GitHub Search API 请求 */
-async function fetchWithTokens(kv: KVNamespace | undefined, q: string, sort: string, perPage: number = 30, envTokens?: string): Promise<{ items: any[]; apiStatus: string } | null> {
-  const pool = await getTokenPool(kv, envTokens)
+async function fetchWithTokens(kv: KVNamespace | undefined, q: string, sort: string, perPage: number = 30, tc?: TokenConfig): Promise<{ items: any[]; apiStatus: string } | null> {
+  const pool = await getTokenPool(kv, tc?.envTokens, tc)
   if (pool.tokens.length === 0) return null // 没有 token，跳过
 
   const params = new URLSearchParams({ q, sort, order: 'desc', per_page: String(perPage) })
@@ -396,17 +488,17 @@ function getDateStr(daysAgo: number): string {
   return d.toISOString().split('T')[0]
 }
 
-async function getHotRepos(kv: KVNamespace | undefined, langFilter: string, envTokens?: string) {
+async function getHotRepos(kv: KVNamespace | undefined, langFilter: string, tc?: TokenConfig) {
   const langQ = langFilter ? ` language:${langFilter}` : ''
-  const apiResult = await fetchWithTokens(kv, `stars:>5000${langQ}`, 'stars', 30, envTokens)
+  const apiResult = await fetchWithTokens(kv, `stars:>5000${langQ}`, 'stars', 30, tc)
   if (apiResult && apiResult.items.length > 0) return apiResult
   return scrapeGitHubTrending(langFilter, 'daily')
 }
 
-async function getRisingRepos(kv: KVNamespace | undefined, langFilter: string, envTokens?: string) {
+async function getRisingRepos(kv: KVNamespace | undefined, langFilter: string, tc?: TokenConfig) {
   const weekAgo = getDateStr(7)
   const langQ = langFilter ? ` language:${langFilter}` : ''
-  const apiResult = await fetchWithTokens(kv, `created:>${weekAgo}${langQ}`, 'stars', 30, envTokens)
+  const apiResult = await fetchWithTokens(kv, `created:>${weekAgo}${langQ}`, 'stars', 30, tc)
   if (apiResult && apiResult.items.length > 0) {
     return { items: apiResult.items.map(r => ({ ...r, _starsToday: r.stargazers_count })), apiStatus: apiResult.apiStatus }
   }
@@ -442,7 +534,7 @@ interface CachedData {
   apiStatus: string
 }
 
-async function getCachedTrending(kv: KVNamespace | undefined, tab: string, langFilter: string, forceRefresh: boolean = false, envTokens?: string) {
+async function getCachedTrending(kv: KVNamespace | undefined, tab: string, langFilter: string, forceRefresh: boolean = false, tc?: TokenConfig) {
   const cacheKey = `trending:${tab}:${langFilter || 'all'}`
 
   if (!forceRefresh) {
@@ -456,8 +548,8 @@ async function getCachedTrending(kv: KVNamespace | undefined, tab: string, langF
   }
 
   const result = tab === 'rising'
-    ? await getRisingRepos(kv, langFilter, envTokens)
-    : await getHotRepos(kv, langFilter, envTokens)
+    ? await getRisingRepos(kv, langFilter, tc)
+    : await getHotRepos(kv, langFilter, tc)
 
   const payload: CachedData = { repos: result.items, timestamp: new Date().toISOString(), apiStatus: result.apiStatus }
   await kvPut(kv, cacheKey, JSON.stringify(payload), { expirationTtl: CACHE_TTL })
@@ -472,16 +564,28 @@ function getClientIP(c: any): string {
     || '0.0.0.0'
 }
 
+/** 从环境变量构建 TokenConfig */
+function buildTokenConfig(env: Bindings): TokenConfig {
+  return {
+    envTokens: env.GITHUB_TOKENS,
+    appId: env.GITHUB_APP_ID,
+    privateKey: env.GITHUB_APP_PRIVATE_KEY,
+    installationId: env.GITHUB_APP_INSTALLATION_ID,
+  }
+}
+
 /** 获取 API 状态概览 (后台用) */
-async function getApiStatusInfo(kv: KVNamespace | undefined) {
-  const pool = await getTokenPool(kv)
+async function getApiStatusInfo(kv: KVNamespace | undefined, tc?: TokenConfig) {
+  const pool = await getTokenPool(kv, tc?.envTokens, tc)
   const now = Date.now()
   const tokenStatuses = pool.tokens.map((t, i) => {
     const cd = pool.cooldowns[t] || 0
     return { index: i, masked: t.slice(0, 8) + '***' + t.slice(-4), active: now > cd, cooldownUntil: cd > now ? new Date(cd).toISOString() : null }
   })
+  const hasApp = !!(tc?.appId && tc?.privateKey && tc?.installationId)
   return {
     mode: pool.tokens.length > 0 ? 'api_with_scrape_fallback' : 'scrape_only',
+    githubApp: hasApp ? { configured: true, tokenCached: !!_appTokenCache, cacheExpiresAt: _appTokenCache?.expiresAt ? new Date(_appTokenCache.expiresAt).toISOString() : null } : { configured: false },
     totalTokens: pool.tokens.length,
     activeTokens: tokenStatuses.filter(t => t.active).length,
     tokens: tokenStatuses,
@@ -516,20 +620,21 @@ app.get('/trending', async (c) => {
     }
 
     const forceRefresh = refresh && rateLimitInfo.allowed
+    const tc = buildTokenConfig(c.env)
 
     if (tab === 'rising') {
-      const result = await getCachedTrending(c.env.KV, 'rising', langFilter, forceRefresh, c.env.GITHUB_TOKENS)
+      const result = await getCachedTrending(c.env.KV, 'rising', langFilter, forceRefresh, tc)
       risingRepos = result.repos
       cacheAge = result.cacheAge
       apiStatus = result.apiStatus
-      const hotResult = await getCachedTrending(c.env.KV, 'hot', langFilter, false, c.env.GITHUB_TOKENS)
+      const hotResult = await getCachedTrending(c.env.KV, 'hot', langFilter, false, tc)
       hotRepos = hotResult.repos
     } else {
-      const result = await getCachedTrending(c.env.KV, 'hot', langFilter, forceRefresh, c.env.GITHUB_TOKENS)
+      const result = await getCachedTrending(c.env.KV, 'hot', langFilter, forceRefresh, tc)
       hotRepos = result.repos
       cacheAge = result.cacheAge
       apiStatus = result.apiStatus
-      const risingResult = await getCachedTrending(c.env.KV, 'rising', langFilter, false, c.env.GITHUB_TOKENS)
+      const risingResult = await getCachedTrending(c.env.KV, 'rising', langFilter, false, tc)
       risingRepos = risingResult.repos
     }
   } catch {
@@ -574,7 +679,8 @@ app.get('/api/trending', async (c) => {
   }
 
   try {
-    const result = await getCachedTrending(c.env.KV, tab, langFilter, refresh, c.env.GITHUB_TOKENS)
+    const tc = buildTokenConfig(c.env)
+    const result = await getCachedTrending(c.env.KV, tab, langFilter, refresh, tc)
     const rl = await checkRateLimit(c.env.KV, ip).catch(() => ({ remaining: RATE_LIMIT_MAX, resetAt: 0, allowed: true }))
     return c.json({
       repos: result.repos,
@@ -591,7 +697,7 @@ app.get('/api/trending', async (c) => {
 
 app.get('/admin/api/github-tokens', async (c) => {
   if (!await checkAuth(c)) return c.json({ error: 'Unauthorized' }, 401)
-  const info = await getApiStatusInfo(c.env.KV)
+  const info = await getApiStatusInfo(c.env.KV, buildTokenConfig(c.env))
   return c.json(info)
 })
 
