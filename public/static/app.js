@@ -96,22 +96,135 @@
     return localStorage.getItem('portal-theme') || 'auto';
   }
 
-  function applyTheme(theme) {
-    const mode = theme; // 'light', 'dark', or 'auto'
+  let themeAnimating = false;
+
+  function applyTheme(mode, clickEvent) {
     localStorage.setItem('portal-theme', mode);
     const actual = mode === 'auto' ? (prefersDark.matches ? 'dark' : 'light') : mode;
-    document.documentElement.setAttribute('data-theme', actual);
-    document.querySelectorAll('.theme-toggle i').forEach(icon => {
-      icon.className = mode === 'auto' ? 'fa-solid fa-circle-half-stroke' : actual === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-    });
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+
+    // Update icon immediately
+    const iconClass = mode === 'auto' ? 'fa-solid fa-circle-half-stroke' : actual === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+
+    // If no visual change needed, just update icon
+    if (actual === currentTheme) {
+      document.querySelectorAll('.theme-toggle i').forEach(i => i.className = iconClass);
+      return;
+    }
+
+    // === Circular Reveal Animation ===
+    // Use View Transitions API if supported, else CSS fallback
+    const supportsVT = typeof document.startViewTransition === 'function';
+
+    // Get click origin for the circular reveal
+    let cx, cy;
+    if (clickEvent) {
+      cx = clickEvent.clientX;
+      cy = clickEvent.clientY;
+    } else {
+      // Fallback: use the theme toggle button center
+      const btn = document.querySelector('.theme-toggle');
+      if (btn) {
+        const r = btn.getBoundingClientRect();
+        cx = r.left + r.width / 2;
+        cy = r.top + r.height / 2;
+      } else {
+        cx = window.innerWidth / 2;
+        cy = window.innerHeight / 2;
+      }
+    }
+
+    // Calculate max radius for the circle to cover full viewport
+    const maxR = Math.hypot(
+      Math.max(cx, window.innerWidth - cx),
+      Math.max(cy, window.innerHeight - cy)
+    );
+
+    if (supportsVT && !themeAnimating) {
+      themeAnimating = true;
+
+      // Set custom properties for the animation origin
+      document.documentElement.style.setProperty('--theme-cx', cx + 'px');
+      document.documentElement.style.setProperty('--theme-cy', cy + 'px');
+      document.documentElement.style.setProperty('--theme-r', maxR + 'px');
+
+      const transition = document.startViewTransition(() => {
+        document.documentElement.setAttribute('data-theme', actual);
+        document.querySelectorAll('.theme-toggle i').forEach(i => {
+          i.className = iconClass;
+          i.classList.add('theme-icon-spin');
+        });
+      });
+
+      transition.ready.then(() => {
+        // Animate the circular clip-path on the new snapshot
+        document.documentElement.animate(
+          {
+            clipPath: [
+              `circle(0px at ${cx}px ${cy}px)`,
+              `circle(${maxR}px at ${cx}px ${cy}px)`
+            ]
+          },
+          {
+            duration: 500,
+            easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            pseudoElement: '::view-transition-new(root)'
+          }
+        );
+      }).catch(() => {});
+
+      transition.finished.then(() => {
+        themeAnimating = false;
+        document.querySelectorAll('.theme-toggle i').forEach(i => {
+          i.classList.remove('theme-icon-spin');
+        });
+      }).catch(() => { themeAnimating = false; });
+
+    } else if (!themeAnimating) {
+      // === CSS Fallback: overlay fade ===
+      themeAnimating = true;
+
+      // Create a circular overlay
+      const overlay = document.createElement('div');
+      overlay.className = 'theme-circle-overlay';
+      overlay.style.cssText = `
+        position:fixed; top:0; left:0; width:100vw; height:100vh;
+        z-index:999999; pointer-events:none;
+        background: ${actual === 'dark' ? '#0F0F0F' : '#FBF8F3'};
+        clip-path: circle(0px at ${cx}px ${cy}px);
+        transition: clip-path 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      `;
+      document.body.appendChild(overlay);
+
+      // Trigger the expansion
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          overlay.style.clipPath = `circle(${maxR}px at ${cx}px ${cy}px)`;
+        });
+      });
+
+      // At midpoint, switch theme under the overlay
+      setTimeout(() => {
+        document.documentElement.setAttribute('data-theme', actual);
+        document.querySelectorAll('.theme-toggle i').forEach(i => {
+          i.className = iconClass;
+        });
+      }, 250);
+
+      // After animation completes, remove overlay
+      setTimeout(() => {
+        overlay.remove();
+        themeAnimating = false;
+      }, 550);
+    }
   }
 
   // Listen for system theme changes (for auto mode)
   prefersDark.addEventListener('change', () => {
-    if (getThemeMode() === 'auto') applyTheme('auto');
+    if (getThemeMode() === 'auto') applyTheme('auto', null);
   });
 
-  applyTheme(getThemeMode());
+  applyTheme(getThemeMode(), null);
 
   // ==============================================
   //  HEADER SCROLL
@@ -1051,13 +1164,13 @@
   //  GLOBAL EVENT DELEGATION (survives DOM swaps)
   // ==============================================
   document.addEventListener('click', (e) => {
-    // Theme toggle (delegated)
+    // Theme toggle (delegated) — circular reveal animation
     const themeBtn = e.target.closest('.theme-toggle');
     if (themeBtn) {
       const mode = getThemeMode();
       // Cycle: light → dark → auto → light
       const next = mode === 'light' ? 'dark' : mode === 'dark' ? 'auto' : 'light';
-      applyTheme(next);
+      applyTheme(next, e);
       return;
     }
 

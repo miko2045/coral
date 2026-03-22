@@ -3232,6 +3232,37 @@ a { text-decoration: none; color: inherit; }
   100% { opacity: 1; filter: blur(0); transform: scale(1); }
 }
 
+/* === Theme Switch — Smooth Global Transition === */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              fill 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              stroke 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+/* Keep animations instant during theme transition */
+html.theme-transitioning .blob,
+html.theme-transitioning [data-aos],
+html.theme-transitioning .nav-indicator {
+  transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Theme icon spin animation */
+.theme-icon-spin {
+  animation: themeIconSpin 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes themeIconSpin {
+  0%   { transform: rotate(0deg) scale(1); }
+  40%  { transform: rotate(180deg) scale(0.7); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
 /* === Trending Responsive === */
 @media (max-width: 768px) {
   .trending-status-bar-standalone {
@@ -3562,4 +3593,78 @@ a { text-decoration: none; color: inherit; }
 @keyframes slideDown {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ======================================
+   THEME SWITCH — Circular Reveal Animation
+   ====================================== */
+
+/* View Transitions API: Disable default cross-fade, use circular clip */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+/* Icon spin during theme switch */
+.theme-icon-spin {
+  animation: themeIconSpin 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes themeIconSpin {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.2); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+/* Smooth transitions for ALL themed elements during theme change */
+/* Applied globally via CSS variable transitions */
+.header, .header::before,
+.nav-link, .nav-indicator,
+.header-icon-btn,
+.mobile-menu-btn,
+.hamburger-line,
+.nav-card, .nav-card::before, .nav-card::after,
+.nav-card-icon,
+.nav-card-body h3, .nav-card-body p,
+.stat-card,
+.stat-number, .stat-label,
+.hero-greeting, .hero-name, .hero-tagline,
+.hero-badge, .hero-badge-dot, .hero-badge-text,
+.about-strip, .about-item,
+.explore-title,
+.home-quote, .quote-text, .quote-author,
+.card, .card-header, .card-body, .card-footer,
+.card-name, .card-desc, .card-time,
+.card-tech-badge, .card-stat,
+.download-card, .download-card-header, .download-card-body,
+.download-btn,
+.page-header-compact, .page-header-title, .page-header-subtitle,
+.trending-status-bar, .trending-status-bar-standalone,
+.trending-tab, .trending-tabs,
+.filter-tag,
+.search-container, .search-input,
+.page-footer, .footer-sub,
+.portal, .container,
+.logo-dot, .logo-text,
+.social-link,
+.back-btn,
+.announcement-item,
+.blob, .bg-decor, .grain,
+.page-transition {
+  transition:
+    background var(--transition),
+    background-color var(--transition),
+    color var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition),
+    opacity 0.4s ease;
 }
