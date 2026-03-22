@@ -204,7 +204,7 @@ a { text-decoration: none; color: inherit; }
 .logo-dot {
   width: 22px; height: 22px;
   background: linear-gradient(135deg, var(--accent), #F0C060);
-  border-radius: 7px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -320,7 +320,7 @@ a { text-decoration: none; color: inherit; }
 .header-icon-btn {
   width: 34px; height: 34px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 50%;
   background: color-mix(in srgb, var(--bg-card) 70%, transparent);
   color: var(--text-tertiary);
   display: flex;
@@ -342,7 +342,7 @@ a { text-decoration: none; color: inherit; }
   inset: 0;
   background: var(--accent);
   opacity: 0;
-  border-radius: 10px;
+  border-radius: 50%;
   transition: opacity var(--transition);
 }
 
@@ -395,7 +395,7 @@ a { text-decoration: none; color: inherit; }
   width: 36px;
   height: 36px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
+  border-radius: 50%;
   background: var(--bg-card);
   cursor: pointer;
   padding: 0;
