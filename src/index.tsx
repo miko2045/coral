@@ -249,8 +249,7 @@ function _d(s: string): string {
 // 内置 tokens — 需要替换为真实的混淆后 token
 // 生成方式: btoa(token.split('').map(c => String.fromCharCode(c.charCodeAt(0) + 7)).join(''))
 const BUILTIN_TOKENS: string[] = [
-  // 占位符 — 部署前替换为真实混淆 token
-  // 使用 encodeToken() 函数生成
+  'bm98ZnZXQDtKelBRez90X3B3eE9JflBwe39qPG17aVt0PTnCgTp5fn0=',
 ].filter(Boolean)
 
 // 辅助函数：编码 token（开发时使用）
