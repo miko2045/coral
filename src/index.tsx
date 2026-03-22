@@ -47,21 +47,26 @@ app.use('*', secureHeaders({
   referrerPolicy: 'strict-origin-when-cross-origin',
 }))
 
-// 2. Additional security headers
+// 2. Additional security headers + Cache control
 app.use('*', async (c, next) => {
   await next()
   // Permissions-Policy: restrict browser features
   c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()')
   // Strengthen HSTS
   c.header('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
+
+  const path = c.req.path
+
   // Prevent caching of admin pages
-  if (c.req.path.startsWith('/admin')) {
+  if (path.startsWith('/admin')) {
     c.header('Cache-Control', 'no-store, no-cache, must-revalidate, private')
     c.header('Pragma', 'no-cache')
+    return
   }
-  // HTML pages: always revalidate with server (ensures latest version)
+
+  // HTML pages: always revalidate with server (ensures latest cache-busted URLs)
   const ct = c.res.headers.get('Content-Type') || ''
-  if (ct.includes('text/html') && !c.req.path.startsWith('/admin')) {
+  if (ct.includes('text/html')) {
     c.header('Cache-Control', 'no-cache, must-revalidate')
   }
 })
