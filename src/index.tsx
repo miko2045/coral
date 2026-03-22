@@ -12,6 +12,7 @@ import type { Lang } from './i18n'
 
 type Bindings = {
   KV: KVNamespace
+  GITHUB_TOKENS?: string // 环境变量/Secret: 逗号分隔的 GitHub tokens
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -261,10 +262,17 @@ function parseNum(s: string | undefined): number {
 
 // ---------- 方案 A: GitHub Search API (需要 Token) ----------
 
-/** 从 KV 读取 admin 配置的 token 列表 + 冷却状态 */
-async function getTokenPool(kv: KVNamespace | undefined) {
+/** 从 KV + 环境变量 读取 token 列表 + 冷却状态 */
+async function getTokenPool(kv: KVNamespace | undefined, envTokens?: string) {
+  // 1. KV 里 admin 配置的 tokens
   const raw = await kvGet(kv, 'github_tokens')
   const tokens: string[] = raw ? JSON.parse(raw) : []
+  // 2. 合并环境变量里的 tokens
+  if (envTokens) {
+    for (const t of envTokens.split(',').map(s => s.trim()).filter(Boolean)) {
+      if (!tokens.includes(t)) tokens.push(t)
+    }
+  }
   const cdRaw = await kvGet(kv, 'github_token_cooldowns')
   const cooldowns: Record<string, number> = cdRaw ? JSON.parse(cdRaw) : {}
   const idxRaw = await kvGet(kv, 'github_token_index')
@@ -286,8 +294,8 @@ function pickToken(pool: { tokens: string[]; cooldowns: Record<string, number>; 
 }
 
 /** GitHub Search API 请求 */
-async function fetchWithTokens(kv: KVNamespace | undefined, q: string, sort: string, perPage: number = 30): Promise<{ items: any[]; apiStatus: string } | null> {
-  const pool = await getTokenPool(kv)
+async function fetchWithTokens(kv: KVNamespace | undefined, q: string, sort: string, perPage: number = 30, envTokens?: string): Promise<{ items: any[]; apiStatus: string } | null> {
+  const pool = await getTokenPool(kv, envTokens)
   if (pool.tokens.length === 0) return null // 没有 token，跳过
 
   const params = new URLSearchParams({ q, sort, order: 'desc', per_page: String(perPage) })
@@ -388,19 +396,17 @@ function getDateStr(daysAgo: number): string {
   return d.toISOString().split('T')[0]
 }
 
-async function getHotRepos(kv: KVNamespace | undefined, langFilter: string) {
-  // 先尝试 API
+async function getHotRepos(kv: KVNamespace | undefined, langFilter: string, envTokens?: string) {
   const langQ = langFilter ? ` language:${langFilter}` : ''
-  const apiResult = await fetchWithTokens(kv, `stars:>5000${langQ}`, 'stars', 30)
+  const apiResult = await fetchWithTokens(kv, `stars:>5000${langQ}`, 'stars', 30, envTokens)
   if (apiResult && apiResult.items.length > 0) return apiResult
-  // fallback 爬取
   return scrapeGitHubTrending(langFilter, 'daily')
 }
 
-async function getRisingRepos(kv: KVNamespace | undefined, langFilter: string) {
+async function getRisingRepos(kv: KVNamespace | undefined, langFilter: string, envTokens?: string) {
   const weekAgo = getDateStr(7)
   const langQ = langFilter ? ` language:${langFilter}` : ''
-  const apiResult = await fetchWithTokens(kv, `created:>${weekAgo}${langQ}`, 'stars', 30)
+  const apiResult = await fetchWithTokens(kv, `created:>${weekAgo}${langQ}`, 'stars', 30, envTokens)
   if (apiResult && apiResult.items.length > 0) {
     return { items: apiResult.items.map(r => ({ ...r, _starsToday: r.stargazers_count })), apiStatus: apiResult.apiStatus }
   }
@@ -436,7 +442,7 @@ interface CachedData {
   apiStatus: string
 }
 
-async function getCachedTrending(kv: KVNamespace | undefined, tab: string, langFilter: string, forceRefresh: boolean = false) {
+async function getCachedTrending(kv: KVNamespace | undefined, tab: string, langFilter: string, forceRefresh: boolean = false, envTokens?: string) {
   const cacheKey = `trending:${tab}:${langFilter || 'all'}`
 
   if (!forceRefresh) {
@@ -450,8 +456,8 @@ async function getCachedTrending(kv: KVNamespace | undefined, tab: string, langF
   }
 
   const result = tab === 'rising'
-    ? await getRisingRepos(kv, langFilter)
-    : await getHotRepos(kv, langFilter)
+    ? await getRisingRepos(kv, langFilter, envTokens)
+    : await getHotRepos(kv, langFilter, envTokens)
 
   const payload: CachedData = { repos: result.items, timestamp: new Date().toISOString(), apiStatus: result.apiStatus }
   await kvPut(kv, cacheKey, JSON.stringify(payload), { expirationTtl: CACHE_TTL })
@@ -512,18 +518,18 @@ app.get('/trending', async (c) => {
     const forceRefresh = refresh && rateLimitInfo.allowed
 
     if (tab === 'rising') {
-      const result = await getCachedTrending(c.env.KV, 'rising', langFilter, forceRefresh)
+      const result = await getCachedTrending(c.env.KV, 'rising', langFilter, forceRefresh, c.env.GITHUB_TOKENS)
       risingRepos = result.repos
       cacheAge = result.cacheAge
       apiStatus = result.apiStatus
-      const hotResult = await getCachedTrending(c.env.KV, 'hot', langFilter)
+      const hotResult = await getCachedTrending(c.env.KV, 'hot', langFilter, false, c.env.GITHUB_TOKENS)
       hotRepos = hotResult.repos
     } else {
-      const result = await getCachedTrending(c.env.KV, 'hot', langFilter, forceRefresh)
+      const result = await getCachedTrending(c.env.KV, 'hot', langFilter, forceRefresh, c.env.GITHUB_TOKENS)
       hotRepos = result.repos
       cacheAge = result.cacheAge
       apiStatus = result.apiStatus
-      const risingResult = await getCachedTrending(c.env.KV, 'rising', langFilter)
+      const risingResult = await getCachedTrending(c.env.KV, 'rising', langFilter, false, c.env.GITHUB_TOKENS)
       risingRepos = risingResult.repos
     }
   } catch {
@@ -568,7 +574,7 @@ app.get('/api/trending', async (c) => {
   }
 
   try {
-    const result = await getCachedTrending(c.env.KV, tab, langFilter, refresh)
+    const result = await getCachedTrending(c.env.KV, tab, langFilter, refresh, c.env.GITHUB_TOKENS)
     const rl = await checkRateLimit(c.env.KV, ip).catch(() => ({ remaining: RATE_LIMIT_MAX, resetAt: 0, allowed: true }))
     return c.json({
       repos: result.repos,
