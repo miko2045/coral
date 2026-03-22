@@ -1098,6 +1098,7 @@
           initNavIndicator();
           initPageBehaviors();
           attachSPALinks();
+          initSidebarWidgets();
           // Update all pages cache
           Object.keys(allPagesCache).forEach(k => delete allPagesCache[k]);
           prefetchAllRoutes();
@@ -1158,12 +1159,15 @@
       }
     });
 
-    // Close on outside click
-    document.addEventListener('click', (e) => {
-      if (activePanel && !e.target.closest('.sidebar-widgets')) {
-        closePanel();
-      }
-    });
+    // Close on outside click (use a named handler to avoid duplicates)
+    if (!window._swOutsideClickBound) {
+      window._swOutsideClickBound = true;
+      document.addEventListener('click', (e) => {
+        if (window._swClosePanel && !e.target.closest('.sidebar-widgets')) {
+          window._swClosePanel();
+        }
+      });
+    }
 
     function openPanel(name) {
       closePanel(true);
@@ -1201,6 +1205,8 @@
       sidebar.querySelectorAll('.sw-panel.visible').forEach(p => p.classList.remove('visible'));
       activePanel = null;
     }
+    // Expose closePanel for outside-click handler
+    window._swClosePanel = () => { if (activePanel) closePanel(); };
 
     // ========== MUSIC PLAYER ==========
     const TRACKS = [
