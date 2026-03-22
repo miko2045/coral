@@ -615,7 +615,7 @@
   }
 
   // ==============================================
-  //  TRENDING LANGUAGE FILTER — Simple SPA navigation
+  //  TRENDING LANGUAGE FILTER — Direct navigation
   // ==============================================
   function initTrendingLangFilter() {
     const filtersWrap = document.getElementById('trendingFilters');
@@ -633,18 +633,15 @@
         const curLang = filtersWrap.getAttribute('data-current-lang');
         if (newLang === curLang) return;
 
-        // Update active state immediately for visual feedback
+        // Visual feedback
         filterBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        filtersWrap.setAttribute('data-current-lang', newLang);
 
-        // Build URL and do a full page navigation (SPA or fallback)
+        // Direct navigation — server renders correct filtered result
         const tab = tabsWrap ? tabsWrap.getAttribute('data-current-tab') || 'hot' : 'hot';
         let href = `/trending?tab=${tab}`;
         if (newLang) href += `&lang_filter=${encodeURIComponent(newLang)}`;
-
-        // Use SPA navigation — reuses existing router, no freeze risk
-        navigateTo(href);
+        window.location.href = href;
       });
     });
   }
