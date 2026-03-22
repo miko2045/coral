@@ -56,21 +56,27 @@
           raf = requestAnimationFrame(crawl);
         });
       },
-      finish() {
+      finish(instant) {
         if (raf) { cancelAnimationFrame(raf); raf = null; }
-        bar.style.transition = 'width 0.15s ease-out';
+        if (instant) {
+          bar.style.transition = 'none';
+          bar.style.width = '0%';
+          bar.style.opacity = '0';
+          return;
+        }
+        bar.style.transition = 'width 0.12s ease-out';
         bar.style.width = '100%';
         setTimeout(() => {
-          bar.style.transition = 'opacity 0.3s ease';
+          bar.style.transition = 'opacity 0.2s ease';
           bar.style.opacity = '0';
-          setTimeout(() => { bar.style.width = '0%'; }, 300);
-        }, 150);
+          setTimeout(() => { bar.style.width = '0%'; }, 200);
+        }, 80);
       },
       cancel() {
         if (raf) { cancelAnimationFrame(raf); raf = null; }
-        bar.style.transition = 'opacity 0.2s ease';
+        bar.style.transition = 'none';
+        bar.style.width = '0%';
         bar.style.opacity = '0';
-        setTimeout(() => { bar.style.width = '0%'; }, 200);
       }
     };
   })();
@@ -842,7 +848,10 @@
     if (toPath === fromPath && !url.search) return;
 
     isTransitioning = true;
-    progressBar.start();
+
+    // Check persistent cache first — if cached, skip progress bar entirely
+    const isCached = !!(allPagesCache[href] || allPagesCache[toPath]);
+    if (!isCached) progressBar.start();
 
     // Immediately update nav active state for instant visual feedback
     updateNavActive(toPath);
@@ -937,7 +946,7 @@
     // === ANIMATE IN ===
     container.style.animation = `slideIn${dir === 'left' ? 'Right' : 'Left'} ${animIn}ms cubic-bezier(0,0,0.2,1) forwards`;
 
-    progressBar.finish();
+    progressBar.finish(isCached);
 
     // Don't await slideIn — let it play while we re-init behaviors
     setTimeout(() => {
