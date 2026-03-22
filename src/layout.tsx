@@ -153,12 +153,12 @@ export function pageLayout({ lang, activePage, children }: LayoutProps) {
             <div class="sw-gb-messages" id="swGbMessages"></div>
             <div class="sw-gb-input">
               <div class="sw-gb-emoji-row">
-                <button class="sw-gb-emoji active" data-emoji="\ud83d\ude0a">\ud83d\ude0a</button>
-                <button class="sw-gb-emoji" data-emoji="\ud83d\ude0e">\ud83d\ude0e</button>
-                <button class="sw-gb-emoji" data-emoji="\ud83d\ude80">\ud83d\ude80</button>
-                <button class="sw-gb-emoji" data-emoji="\u2764\ufe0f">\u2764\ufe0f</button>
-                <button class="sw-gb-emoji" data-emoji="\ud83d\udc4d">\ud83d\udc4d</button>
-                <button class="sw-gb-emoji" data-emoji="\ud83c\udf1f">\ud83c\udf1f</button>
+                <button class="sw-gb-emoji active" data-emoji="😊">😊</button>
+                <button class="sw-gb-emoji" data-emoji="😎">😎</button>
+                <button class="sw-gb-emoji" data-emoji="🚀">🚀</button>
+                <button class="sw-gb-emoji" data-emoji="❤️">❤️</button>
+                <button class="sw-gb-emoji" data-emoji="👍">👍</button>
+                <button class="sw-gb-emoji" data-emoji="🌟">🌟</button>
               </div>
               <div class="sw-gb-row">
                 <input type="text" id="swGbInput" maxlength="60" placeholder={lang === 'zh' ? '说点什么...' : 'Say something...'} />
