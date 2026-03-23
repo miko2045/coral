@@ -627,9 +627,13 @@
         btn.classList.add('active');
 
         // Direct navigation — server renders correct filtered result
+        // Clear SPA cache for trending to force fresh fetch
         const tab = tabsWrap ? tabsWrap.getAttribute('data-current-tab') || 'hot' : 'hot';
         let href = `/trending?tab=${tab}`;
         if (newLang) href += `&lang_filter=${encodeURIComponent(newLang)}`;
+        // Invalidate any cached trending pages so SPA re-fetches on back-nav
+        Object.keys(allPagesCache).forEach(k => { if (k.startsWith('/trending')) delete allPagesCache[k]; });
+        Object.keys(prefetchCache).forEach(k => { if (k.startsWith('/trending')) delete prefetchCache[k]; });
         window.location.href = href;
       });
     });
@@ -810,6 +814,13 @@
 
     if (toPath === fromPath && !url.search) return;
 
+    // If navigating to trending with query params, invalidate cache to get fresh server render
+    if (toPath === '/trending' && url.search) {
+      delete allPagesCache[href];
+      delete allPagesCache[toPath];
+      delete prefetchCache[href];
+    }
+
     isTransitioning = true;
 
     // Check persistent cache first — if cached, skip progress bar entirely
@@ -948,6 +959,9 @@
       if (link.getAttribute('target') === '_blank') return;
       if (href.startsWith('/admin') || href.startsWith('/api/')) return;
 
+      // Skip refresh links — they must bypass SPA cache to hit the server
+      if (href.includes('refresh=1') || link.classList.contains('trd-refresh')) return;
+
       // Check if this is a SPA route
       let fullHref;
       try {
@@ -966,12 +980,13 @@
       }, { passive: true });
 
       // Track touch position to distinguish taps from scrolls
-      let touchStartX = 0, touchStartY = 0, touchMoved = false;
+      let touchStartX = 0, touchStartY = 0, touchStartTime = 0, touchMoved = false;
       link.addEventListener('touchstart', (e) => {
         prefetchPage(href);
         const t = e.touches[0];
         touchStartX = t.clientX;
         touchStartY = t.clientY;
+        touchStartTime = Date.now();
         touchMoved = false;
       }, { passive: true });
 
@@ -980,14 +995,16 @@
         const t = e.touches[0];
         const dx = Math.abs(t.clientX - touchStartX);
         const dy = Math.abs(t.clientY - touchStartY);
-        // If finger moved more than 10px, it's a scroll not a tap
-        if (dx > 10 || dy > 10) touchMoved = true;
+        // If finger moved more than 6px, it's a scroll not a tap
+        if (dx > 6 || dy > 6) touchMoved = true;
       }, { passive: true });
 
-      // Use touchend for instant mobile navigation — only if not scrolling
+      // Use touchend for mobile navigation — only if not scrolling and touch was short
       let touchNavHandled = false;
       link.addEventListener('touchend', (e) => {
         if (touchMoved) { touchMoved = false; return; }
+        // Reject long-press (>400ms) — likely not an intentional tap
+        if (Date.now() - touchStartTime > 400) return;
         if (e.cancelable) e.preventDefault();
         touchNavHandled = true;
         navigateTo(href);
