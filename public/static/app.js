@@ -1689,7 +1689,7 @@
       const latest = msgs.slice(-20).reverse();
       el.innerHTML = latest.map(m => {
         const ago = timeAgoShort(m.time);
-        return `<div class="sw-gb-msg"><span class="sw-gb-msg-emoji">${m.emoji || '\uD83D\uDE0A'}</span><span class="sw-gb-msg-text">${escHtml(m.text)}</span><span class="sw-gb-msg-time">${ago}</span></div>`;
+        return `<div class="sw-gb-msg"><span class="sw-gb-msg-emoji">${escHtml(m.emoji || '\uD83D\uDE0A')}</span><span class="sw-gb-msg-text">${escHtml(m.text)}</span><span class="sw-gb-msg-time">${ago}</span></div>`;
       }).join('');
     }
 

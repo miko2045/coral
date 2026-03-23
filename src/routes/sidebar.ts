@@ -2,7 +2,7 @@
 import { Hono } from 'hono'
 import type { AppEnv } from '../types'
 import { kvGet, kvPut } from '../lib/kv'
-import { checkText } from '../lib/wordfilter'
+import { checkText, sanitizeText, isSafeJSON } from '../lib/wordfilter'
 
 const sidebar = new Hono<AppEnv>()
 
@@ -102,27 +102,41 @@ sidebar.post('/api/sidebar/guestbook', async (c) => {
   } catch {
     return c.json({ error: 'Invalid JSON body' }, 400)
   }
+
+  // ── Anti-injection: reject prototype pollution ──
+  if (!isSafeJSON(body)) {
+    return c.json({ error: 'Invalid request' }, 400)
+  }
+
   const { text, emoji } = body as { text: string; emoji?: string }
 
+  // ── Type validation ──
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
     return c.json({ error: 'Message cannot be empty' }, 400)
   }
   if (text.length > 60) {
     return c.json({ error: 'Message too long (max 60 chars)' }, 400)
   }
-  // Sanitize: strip HTML tags and control characters
-  const cleanText = text.trim().replace(/<[^>]*>/g, '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '').slice(0, 60)
+
+  // ── Deep sanitize: strip HTML, control chars, zero-width, entities ──
+  const cleanText = sanitizeText(text, 60)
   if (cleanText.length === 0) {
     return c.json({ error: 'Message cannot be empty after sanitization' }, 400)
   }
 
-  // Blocked word filter — reject messages containing sensitive / abusive content
+  // ── Blocked word filter (includes XSS/injection detection) ──
   const filterResult = checkText(cleanText)
   if (filterResult.blocked) {
     return c.json({ error: '消息包含不当内容，请修改后重试 / Message contains inappropriate content' }, 400)
   }
-  // Validate emoji (must be actual emoji, max 2 chars)
-  const safeEmoji = (emoji && typeof emoji === 'string') ? emoji.slice(0, 2) : '😊'
+
+  // ── Validate emoji: must be real emoji codepoints, no script injection ──
+  let safeEmoji = '😊'
+  if (emoji && typeof emoji === 'string') {
+    // Strip anything that isn't an actual emoji codepoint
+    const emojiOnly = emoji.replace(/[^\p{Emoji_Presentation}\p{Emoji}\uFE0F\u200D]/gu, '')
+    safeEmoji = emojiOnly.slice(0, 2) || '😊'
+  }
 
   const ip = c.req.header('x-real-ip') || c.req.header('x-forwarded-for') || 'unknown'
   const ipHash = await hashIP(ip)
