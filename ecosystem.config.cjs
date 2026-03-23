@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'coral',
       script: 'npx',
-      args: 'wrangler pages dev dist --kv=KV --local --ip 0.0.0.0 --port 3000',
+      args: 'wrangler pages dev dist --kv=KV --local --ip 127.0.0.1 --port 3000',
       env: {
         NODE_ENV: 'development',
         PORT: 3000

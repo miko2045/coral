@@ -493,14 +493,44 @@ admin.post('/admin/api/import', async (c) => {
     if (r.success) { writeOps.push(kvPut(c.env.KV, 'repos', JSON.stringify(r.data))); importedCount++ }
   }
   if (data.files && Array.isArray(data.files)) {
-    writeOps.push(kvPut(c.env.KV, 'files', JSON.stringify(data.files))); importedCount++
+    // Validate each file entry has required fields and no prototype pollution
+    const validFiles = data.files.filter((f: any) =>
+      f && typeof f === 'object' && !Array.isArray(f) &&
+      typeof f.key === 'string' && f.key.length > 0 && f.key.length < 200 &&
+      !('__proto__' in f) && !('constructor' in f) && !('prototype' in f)
+    ).map((f: any) => ({
+      key: String(f.key).slice(0, 200),
+      displayName: typeof f.displayName === 'string' ? f.displayName.slice(0, 500) : '',
+      originalName: typeof f.originalName === 'string' ? f.originalName.slice(0, 500) : '',
+      size: typeof f.size === 'number' ? f.size : 0,
+      type: typeof f.type === 'string' ? f.type.slice(0, 100) : '',
+      uploadedAt: typeof f.uploadedAt === 'string' ? f.uploadedAt : new Date().toISOString(),
+      storageType: f.storageType === 'local' ? 'local' : 'kv',
+      ...(f.isExternal ? { isExternal: true, externalUrl: typeof f.externalUrl === 'string' ? f.externalUrl.slice(0, 2000) : '' } : {}),
+      ...(f.pinned ? { pinned: true } : {}),
+      ...(typeof f.order === 'number' ? { order: f.order } : {}),
+    }))
+    writeOps.push(kvPut(c.env.KV, 'files', JSON.stringify(validFiles))); importedCount++
   }
   if (data.settings) {
     const r = validate(SettingsSchema, data.settings)
     if (r.success) { writeOps.push(kvPut(c.env.KV, 'settings', JSON.stringify(r.data))); importedCount++ }
   }
   if (data.announcements && Array.isArray(data.announcements)) {
-    writeOps.push(kvPut(c.env.KV, 'announcements', JSON.stringify(data.announcements))); importedCount++
+    // Validate each announcement entry
+    const validAnnouncements = data.announcements.filter((a: any) =>
+      a && typeof a === 'object' && !Array.isArray(a) &&
+      typeof a.id === 'string' && a.id.length > 0 && a.id.length < 50 &&
+      !('__proto__' in a) && !('constructor' in a)
+    ).map((a: any) => ({
+      id: String(a.id).slice(0, 50),
+      title: typeof a.title === 'string' ? a.title.slice(0, 200) : '',
+      content: typeof a.content === 'string' ? a.content.slice(0, 2000) : '',
+      type: ['info', 'warning', 'success', 'error'].includes(a.type) ? a.type : 'info',
+      enabled: typeof a.enabled === 'boolean' ? a.enabled : false,
+      createdAt: typeof a.createdAt === 'number' ? a.createdAt : Date.now(),
+    }))
+    writeOps.push(kvPut(c.env.KV, 'announcements', JSON.stringify(validAnnouncements))); importedCount++
   }
 
   await Promise.all(writeOps)
