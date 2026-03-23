@@ -109,6 +109,13 @@ pages.get('/google7683c8c49b0677e3.html', (c) => {
   })
 })
 
+// Baidu site verification
+pages.get('/baidu_verify_codeva-JaoWqGeJlA.html', (c) => {
+  return new Response('4f98a1f1d59e7e3a04cf9d8858cda653', {
+    headers: { 'Content-Type': 'text/html; charset=UTF-8' },
+  })
+})
+
 // Sitemap.xml for search engines
 pages.get('/sitemap.xml', async (c) => {
   const siteUrl = 'https://likeok.online'
