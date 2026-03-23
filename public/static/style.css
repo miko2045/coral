@@ -75,7 +75,7 @@ a, button, [role="button"], .nav-link, .filter-tag, .trending-tab,
 }
 
 html {
-  scroll-behavior: smooth;
+  /* scroll-behavior: smooth removed — interferes with native scroll inertia on mobile */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -123,34 +123,29 @@ a { text-decoration: none; color: inherit; }
   overflow: hidden;
 }
 
+/* Use radial-gradient instead of filter:blur(80px) — zero runtime cost */
 .blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.5;
-  /* Static — no animation. Moving blurred elements kills scroll perf */
-  will-change: auto;
+  opacity: 0.45;
 }
 
 .blob-1 {
-  width: 500px; height: 500px;
-  background: var(--blob-1);
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, var(--blob-1) 0%, transparent 70%);
   top: -10%; right: -5%;
-  animation-delay: 0s;
 }
 
 .blob-2 {
-  width: 400px; height: 400px;
-  background: var(--blob-2);
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, var(--blob-2) 0%, transparent 70%);
   bottom: 10%; left: -5%;
-  animation-delay: -7s;
 }
 
 .blob-3 {
-  width: 300px; height: 300px;
-  background: var(--blob-3);
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, var(--blob-3) 0%, transparent 70%);
   top: 40%; left: 50%;
-  animation-delay: -14s;
 }
 
 /* blobFloat animation removed — filter:blur(80px) + infinite animation = jank */
@@ -191,7 +186,7 @@ a { text-decoration: none; color: inherit; }
   top: 0;
   z-index: 100;
   background: transparent;
-  transition: all 0.4s ease;
+  transition: background 0.4s ease;
 }
 
 .header::before {
@@ -204,7 +199,7 @@ a { text-decoration: none; color: inherit; }
   padding: 0 28px;
   border-bottom: 1px solid transparent;
   border-radius: 0 0 var(--radius) var(--radius);
-  transition: all 0.4s ease;
+  transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
 }
 
 .header.scrolled::before {
@@ -239,7 +234,7 @@ a { text-decoration: none; color: inherit; }
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 8px rgba(232,168,56,0.3);
-  transition: all var(--transition);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   position: relative;
 }
 
@@ -286,7 +281,7 @@ a { text-decoration: none; color: inherit; }
   color: var(--text-tertiary);
   padding: 7px 14px;
   border-radius: 99px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color 0.25s ease, background 0.25s ease;
   letter-spacing: -0.01em;
   position: relative;
   z-index: 1;
@@ -299,7 +294,7 @@ a { text-decoration: none; color: inherit; }
 .nav-link i {
   font-size: 0.68rem;
   opacity: 0.5;
-  transition: all 0.25s ease;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 .nav-link:hover {
@@ -335,7 +330,7 @@ a { text-decoration: none; color: inherit; }
   background: var(--bg-card);
   border-radius: 99px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px var(--border);
-  transition: all 0.38s cubic-bezier(0.4, 0, 0.1, 1);
+  transition: transform 0.38s cubic-bezier(0.4, 0, 0.1, 1), width 0.38s cubic-bezier(0.4, 0, 0.1, 1), left 0.38s cubic-bezier(0.4, 0, 0.1, 1), opacity 0.38s ease;
   z-index: 0;
   pointer-events: none;
   opacity: 0;
@@ -363,7 +358,7 @@ a { text-decoration: none; color: inherit; }
   justify-content: center;
   font-size: 0.78rem;
   cursor: pointer;
-  transition: all var(--transition);
+  transition: color 0.3s ease, border-color 0.3s ease, background 0.3s ease;
   text-decoration: none;
   position: relative;
   overflow: hidden;
@@ -433,7 +428,7 @@ a { text-decoration: none; color: inherit; }
   background: var(--bg-card);
   cursor: pointer;
   padding: 0;
-  transition: all var(--transition);
+  transition: border-color 0.3s ease;
 }
 
 .mobile-menu-btn:hover {
@@ -446,7 +441,7 @@ a { text-decoration: none; color: inherit; }
   height: 1.5px;
   background: var(--text-secondary);
   border-radius: 2px;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 .mobile-menu-btn.open .hamburger-line:nth-child(1) {
@@ -476,8 +471,9 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  transition: border-color 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: border-color 0.3s ease, transform 0.3s ease;
   position: relative;
+  contain: layout style;
 }
 
 .card:hover {
@@ -606,7 +602,7 @@ a { text-decoration: none; color: inherit; }
   justify-content: center;
   font-size: 1rem;
   color: var(--text-secondary);
-  transition: all var(--transition);
+  transition: color 0.3s ease, border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
   background: var(--bg-card);
 }
 
@@ -743,7 +739,7 @@ a { text-decoration: none; color: inherit; }
   padding: 16px 8px;
   background: var(--bg);
   border-radius: var(--radius-sm);
-  transition: all var(--transition);
+  transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .stat-item:hover {
@@ -848,14 +844,13 @@ a { text-decoration: none; color: inherit; }
 .side-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.35;
-  /* Static — no animation for perf */
+  opacity: 0.25;
+  /* No filter:blur — use radial-gradient on individual orbs instead */
 }
-.side-orb-1 { width: 120px; height: 120px; background: var(--accent); top: 20%; left: 40px; }
-.side-orb-2 { width: 80px; height: 80px; background: #7C5CFC; top: 55%; right: 30px; animation-delay: -8s; }
-.side-orb-3 { width: 100px; height: 100px; background: #22C55E; bottom: 25%; left: 50px; animation-delay: -4s; }
-.side-orb-4 { width: 90px; height: 90px; background: #EF4444; top: 35%; right: 40px; animation-delay: -12s; }
+.side-orb-1 { width: 160px; height: 160px; background: radial-gradient(circle, var(--accent) 0%, transparent 70%); top: 20%; left: 40px; }
+.side-orb-2 { width: 120px; height: 120px; background: radial-gradient(circle, #7C5CFC 0%, transparent 70%); top: 55%; right: 30px; }
+.side-orb-3 { width: 140px; height: 140px; background: radial-gradient(circle, #22C55E 0%, transparent 70%); bottom: 25%; left: 50px; }
+.side-orb-4 { width: 130px; height: 130px; background: radial-gradient(circle, #EF4444 0%, transparent 70%); top: 35%; right: 40px; }
 
 /* sideOrbFloat animation removed for scroll perf */
 
@@ -889,8 +884,6 @@ a { text-decoration: none; color: inherit; }
   margin-bottom: 16px;
   overflow: hidden;
   box-shadow: var(--shadow-premium);
-  backdrop-filter: blur(24px) saturate(1.2);
-  -webkit-backdrop-filter: blur(24px) saturate(1.2);
 }
 
 /* Noise grain overlay for premium texture */
@@ -954,13 +947,11 @@ a { text-decoration: none; color: inherit; }
   gap: 1px;
   font-variant-numeric: tabular-nums;
   z-index: 3;
-  background: color-mix(in srgb, var(--bg-card) 70%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--bg-card);
   padding: 5px 12px;
   border-radius: 99px;
   border: 1px solid var(--border);
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 .hero-time:hover { border-color: var(--accent); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 15%, transparent); }
 
@@ -1043,12 +1034,7 @@ a { text-decoration: none; color: inherit; }
   border-radius: 50%;
   z-index: 3;
   box-shadow: 0 0 8px rgba(34,197,94,0.35);
-  animation: statusPulse 2.5s ease-in-out infinite;
-}
-
-@keyframes statusPulse {
-  0%, 100% { box-shadow: 0 0 6px rgba(34,197,94,0.3); }
-  50% { box-shadow: 0 0 16px rgba(34,197,94,0.5); }
+  /* statusPulse removed — infinite box-shadow animation causes jank */
 }
 
 .hero-info {
@@ -1097,7 +1083,7 @@ a { text-decoration: none; color: inherit; }
   font-size: 0.74rem;
   color: var(--text-secondary);
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, background 0.3s ease;
 }
 .hero-badge:hover {
   border-color: var(--accent);
@@ -1127,9 +1113,8 @@ a { text-decoration: none; color: inherit; }
   justify-content: center;
   font-size: 0.88rem;
   color: var(--text-tertiary);
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  background: color-mix(in srgb, var(--bg-card) 60%, transparent);
-  backdrop-filter: blur(8px);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  background: var(--bg-card);
 }
 
 .hero-social:hover {
@@ -1153,9 +1138,7 @@ a { text-decoration: none; color: inherit; }
 
 /* ----- ABOUT STRIP — Glassmorphism ----- */
 .about-strip {
-  background: color-mix(in srgb, var(--bg-card) 85%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 18px 28px;
@@ -1165,7 +1148,7 @@ a { text-decoration: none; color: inherit; }
   justify-content: space-between;
   gap: 20px;
   flex-wrap: wrap;
-  transition: all 0.4s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 .about-strip:hover {
   border-color: var(--border-hover);
@@ -1210,8 +1193,7 @@ a { text-decoration: none; color: inherit; }
 }
 
 .stat-pill {
-  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
-  backdrop-filter: blur(8px);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 20px 14px 16px;
@@ -1403,7 +1385,7 @@ a { text-decoration: none; color: inherit; }
   color: var(--text-tertiary);
   opacity: 0;
   transform: translateX(-8px);
-  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity 0.3s ease, transform 0.3s ease, color 0.3s ease;
   font-size: 0.8rem;
   position: relative;
   z-index: 1;
@@ -1417,9 +1399,7 @@ a { text-decoration: none; color: inherit; }
 
 /* ----- QUOTE — Premium Glassmorphism ----- */
 .home-quote {
-  background: color-mix(in srgb, var(--bg-card) 80%, transparent);
-  backdrop-filter: blur(16px) saturate(1.1);
-  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 36px 44px;
@@ -1898,7 +1878,7 @@ a { text-decoration: none; color: inherit; }
   color: var(--text-secondary);
   font-size: 0.85rem;
   flex-shrink: 0;
-  transition: all 0.25s ease;
+  transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
   border: 1px solid var(--border);
 }
 .page-back-btn:hover {
@@ -2025,7 +2005,7 @@ a { text-decoration: none; color: inherit; }
   text-decoration: none;
   color: inherit;
   cursor: pointer;
-  transition: all var(--transition);
+  transition: background 0.3s ease;
   border-radius: var(--radius-xs);
 }
 
@@ -2061,7 +2041,7 @@ a { text-decoration: none; color: inherit; }
   border-radius: var(--radius-xs);
   font-size: 1.1rem;
   flex-shrink: 0;
-  transition: all var(--transition);
+  transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
 }
 
 .card-entry:hover .entry-icon {
@@ -2089,7 +2069,7 @@ a { text-decoration: none; color: inherit; }
 
 .card-entry .card-arrow {
   color: var(--text-tertiary);
-  transition: all var(--transition);
+  transition: color 0.3s ease, transform 0.3s ease;
   font-size: 0.8rem;
 }
 
@@ -2194,15 +2174,15 @@ a { text-decoration: none; color: inherit; }
   color: inherit;
   overflow: hidden;
   position: relative;
-  transition: border-color 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-  animation: cardSlideIn 0.5s ease forwards;
+  transition: border-color 0.3s ease, transform 0.3s ease;
+  animation: cardSlideIn 0.4s ease forwards;
   opacity: 0;
 }
 
 .pj-card:hover {
   border-color: var(--border-hover);
   box-shadow: var(--shadow-lg);
-  transform: translateY(-4px);
+  transform: translateY(-3px);
 }
 
 .pj-card:active {
@@ -2265,7 +2245,7 @@ a { text-decoration: none; color: inherit; }
   color: var(--text-tertiary);
   opacity: 0;
   transform: translate(-4px, 4px);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity 0.3s ease, transform 0.3s ease, color 0.3s ease;
   flex-shrink: 0;
 }
 .pj-card:hover .pj-go { opacity: 1; transform: translate(0, 0); color: var(--accent); }
@@ -2394,13 +2374,13 @@ a { text-decoration: none; color: inherit; }
   color: inherit;
   position: relative;
   overflow: hidden;
-  transition: border-color 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-  animation: cardSlideIn 0.5s ease forwards;
+  transition: border-color 0.3s ease, transform 0.3s ease;
+  animation: cardSlideIn 0.4s ease forwards;
   opacity: 0;
 }
 
 @keyframes cardSlideIn {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -2565,7 +2545,7 @@ a { text-decoration: none; color: inherit; }
   color: var(--text-tertiary);
   opacity: 0;
   transform: translateX(-4px);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity 0.3s ease, transform 0.3s ease, color 0.3s ease;
 }
 
 .gh-card:hover .gh-card-go {
@@ -2591,7 +2571,7 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   border-radius: 99px;
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
 }
 
 .gh-footer-link:hover {
@@ -2825,7 +2805,7 @@ a { text-decoration: none; color: inherit; }
   border-radius: 10px;
   font-size: 0.8rem;
   text-decoration: none;
-  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
   border: none;
   cursor: pointer;
 }
@@ -2871,7 +2851,7 @@ a { text-decoration: none; color: inherit; }
   justify-content: center;
   font-size: 1.2rem;
   flex-shrink: 0;
-  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .card-entry:hover .entry-icon {
@@ -2907,7 +2887,7 @@ a { text-decoration: none; color: inherit; }
   color: var(--text-tertiary);
   opacity: 0;
   transform: translateX(-8px);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity 0.3s ease, transform 0.3s ease, color 0.3s ease;
   font-size: 0.9rem;
 }
 
@@ -2922,7 +2902,7 @@ a { text-decoration: none; color: inherit; }
   text-decoration: none;
   color: inherit;
   cursor: pointer;
-  transition: all var(--transition);
+  transition: background 0.3s ease;
   border-radius: var(--radius-xs);
   padding: 4px;
   margin: -4px;
@@ -3035,7 +3015,7 @@ a { text-decoration: none; color: inherit; }
   background: var(--accent);
   color: #fff;
   text-decoration: none;
-  transition: all var(--transition);
+  transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
   border: none;
   cursor: pointer;
   flex-shrink: 0;
@@ -3100,7 +3080,7 @@ a { text-decoration: none; color: inherit; }
   font-weight: 600;
   color: var(--text-secondary);
   text-decoration: none;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color 0.25s ease, background 0.25s ease;
   flex: 1;
   justify-content: center;
   border: none;
@@ -3180,7 +3160,7 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   text-decoration: none;
   white-space: nowrap;
-  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.22s ease, color 0.22s ease, background 0.22s ease;
   flex-shrink: 0;
   cursor: pointer;
   font-family: inherit;
@@ -3252,7 +3232,7 @@ a { text-decoration: none; color: inherit; }
   color: inherit;
   overflow: hidden;
   max-width: 100%;
-  transition: border-color 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), background 0.3s ease;
+  transition: border-color 0.3s ease, transform 0.3s ease, background 0.3s ease;
   position: relative;
   animation: cardSlideIn 0.4s ease forwards;
   opacity: 0;
@@ -3482,7 +3462,7 @@ a { text-decoration: none; color: inherit; }
   color: var(--text-tertiary);
   opacity: 0;
   transform: translate(-6px, 6px);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity 0.3s ease, transform 0.3s ease;
   padding-top: 4px;
   font-size: 0.75rem;
 }
@@ -4040,7 +4020,7 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.25s ease;
+  transition: color 0.25s ease, background 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
   position: relative;
 }
 
@@ -4078,7 +4058,7 @@ a { text-decoration: none; color: inherit; }
   opacity: 0;
   transform: translateX(12px) scale(0.96);
   pointer-events: none;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity 0.3s ease, transform 0.3s ease;
   overflow: hidden;
 }
 
@@ -4117,7 +4097,7 @@ a { text-decoration: none; color: inherit; }
   align-items: center;
   justify-content: center;
   font-size: 0.7rem;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .sw-panel-close:hover {
@@ -4213,7 +4193,7 @@ a { text-decoration: none; color: inherit; }
   cursor: pointer;
   padding: 6px;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, background 0.2s ease;
 }
 
 .sw-music-controls button:hover {
@@ -4437,7 +4417,7 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .sw-gb-emoji:hover {
@@ -4483,7 +4463,7 @@ a { text-decoration: none; color: inherit; }
   align-items: center;
   justify-content: center;
   font-size: 0.72rem;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   flex-shrink: 0;
 }
 
@@ -4521,7 +4501,7 @@ a { text-decoration: none; color: inherit; }
   border-radius: 99px;
   font-size: 0.72rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, color 0.2s ease;
   font-family: inherit;
 }
 
@@ -4619,7 +4599,7 @@ button:focus-visible,
 
 /* --- Trending topic tags hover --- */
 .trd-topic {
-  transition: all 0.22s ease;
+  transition: background 0.22s ease, transform 0.22s ease;
 }
 .trd-topic:hover {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
@@ -4679,7 +4659,7 @@ button:focus-visible,
 
 /* --- Share button enhanced interaction --- */
 .share-btn {
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .share-btn:hover {
   transform: scale(1.08);
