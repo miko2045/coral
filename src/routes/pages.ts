@@ -102,6 +102,13 @@ pages.get('/downloads', async (c) => {
   })
 })
 
+// Google Search Console verification
+pages.get('/google7683c8c49b0677e3.html', (c) => {
+  return new Response('google-site-verification: google7683c8c49b0677e3.html', {
+    headers: { 'Content-Type': 'text/html; charset=UTF-8' },
+  })
+})
+
 // Sitemap.xml for search engines
 pages.get('/sitemap.xml', async (c) => {
   const siteUrl = 'https://likeok.online'
