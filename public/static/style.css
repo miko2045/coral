@@ -80,6 +80,18 @@ html {
   }
 }
 
+/* Kill ALL transitions during theme switch — prevents the "flash" where
+   dozens of elements animate background/color/border at different speeds.
+   JS adds this class before switching data-theme, forces a reflow,
+   then removes it so normal transitions resume. */
+html.no-transitions,
+html.no-transitions *,
+html.no-transitions *::before,
+html.no-transitions *::after {
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
 body {
   font-family: var(--font);
   background: var(--bg);

@@ -109,12 +109,32 @@
       return;
     }
 
-    // Switch instantly — no overlay, no delay
+    // Step 1: Kill ALL transitions BEFORE switching theme.
+    // This prevents the "flash" where dozens of elements animate
+    // background/color/border/shadow at different speeds.
+    document.documentElement.classList.add('no-transitions');
+
+    // Step 2: Switch theme instantly (no transition will fire)
     document.documentElement.setAttribute('data-theme', actual);
     document.documentElement.style.colorScheme = actual === 'dark' ? 'dark only' : 'light only';
-    document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', actual === 'dark' ? 'dark only' : 'light only');
+    const meta = document.querySelector('meta[name="color-scheme"]');
+    if (meta) meta.setAttribute('content', actual === 'dark' ? 'dark only' : 'light only');
 
-    // Icon rotate animation as visual feedback (only on user click)
+    // Step 3: Force browser to apply all new CSS variable values RIGHT NOW
+    // getComputedStyle is more reliable than offsetHeight for forcing style recalc
+    getComputedStyle(document.documentElement).getPropertyValue('--bg');
+
+    // Step 4: Re-enable transitions on the NEXT animation frame.
+    // This guarantees the browser has fully painted with new colors
+    // before any transition can fire. Double-rAF ensures we're past
+    // the current paint cycle.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.documentElement.classList.remove('no-transitions');
+      });
+    });
+
+    // Icon animation as click feedback (runs independently)
     if (clickEvent && !themeAnimating) {
       themeAnimating = true;
       document.querySelectorAll('.theme-toggle i').forEach(i => {
