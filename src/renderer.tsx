@@ -20,6 +20,8 @@ export const renderer = jsxRenderer(({ children, title, lang, isAdmin, descripti
         <meta name="keywords" content={pageKeywords} />
         <meta name="author" content="Alex Chen" />
         <meta name="robots" content={isAdmin ? 'noindex, nofollow' : 'index, follow'} />
+        {/* Search Engine Verification */}
+        <meta name="baidu-site-verification" content="codeva-JaoWqGeJlA" />
         <link rel="canonical" href={pageCanonical} />
         {/* Open Graph (Facebook, WeChat, etc.) */}
         <meta property="og:type" content="website" />
