@@ -6,7 +6,7 @@ import { parseLang, t } from '../i18n'
 import { kvGet, kvPut, kvPutBuffer, kvDelete, getData } from '../lib/kv'
 import { checkAuth, hashPassword, verifyPassword, getClientIP, generateCsrfToken, validateCsrfToken } from '../lib/auth'
 import { DEFAULT_PROFILE, DEFAULT_WEBSITES, DEFAULT_REPOS, DEFAULT_SETTINGS, FILE_SERVER_SECRET_HEADER } from '../lib/constants'
-import { validate, ProfileSchema, WebsitesArraySchema, ReposArraySchema, SettingsSchema, PasswordChangeSchema, UsernameChangeSchema, ExternalLinkSchema, AnnouncementSchema, TokensSchema } from '../lib/validation'
+import { validate, ProfileSchema, WebsitesArraySchema, ReposArraySchema, SettingsSchema, PasswordChangeSchema, UsernameChangeSchema, ExternalLinkSchema, AnnouncementSchema, TokensSchema, FileRenameSchema } from '../lib/validation'
 import { adminPage } from '../admin'
 import type { Announcement } from '../types'
 
@@ -40,20 +40,60 @@ admin.use('/admin/*', async (c, next) => {
 // Dashboard
 admin.get('/admin', async (c) => {
   const lang = parseLang(c.req.header('Cookie'))
-  const [profile, websites, repos, files, settings, announcements] = await Promise.all([
+  const [profile, websites, repos, files, settings, announcements, shares] = await Promise.all([
     getData(c.env.KV, 'profile', DEFAULT_PROFILE),
     getData(c.env.KV, 'websites', DEFAULT_WEBSITES),
     getData(c.env.KV, 'repos', DEFAULT_REPOS),
     getData(c.env.KV, 'files', []),
     getData(c.env.KV, 'settings', DEFAULT_SETTINGS),
     getData<Announcement[]>(c.env.KV, 'announcements', []),
+    getData<ShareLink[]>(c.env.KV, 'shares', []),
   ])
   // Generate CSRF token for this session
   const cookie = c.req.header('Cookie') || ''
   const match = cookie.match(/__Host-portal_session=([^;]+)/) || cookie.match(/portal_session=([^;]+)/)
   const sessionId = match ? match[1] : ''
   const csrfToken = await generateCsrfToken(c.env.KV, sessionId)
-  return c.render(adminPage('dashboard', { profile, websites, repos, files, settings, lang, announcements, csrfToken }), { title: lang === 'zh' ? '管理面板' : 'Admin Panel', lang, isAdmin: true })
+  return c.render(adminPage('dashboard', { profile, websites, repos, files, settings, lang, announcements, shares, csrfToken }), { title: lang === 'zh' ? '管理面板' : 'Admin Panel', lang, isAdmin: true })
+})
+
+// === Dashboard Stats API ===
+admin.get('/admin/api/stats', async (c) => {
+  const [files, websites, repos, shares, announcements] = await Promise.all([
+    getData<FileMeta[]>(c.env.KV, 'files', []),
+    getData(c.env.KV, 'websites', DEFAULT_WEBSITES),
+    getData(c.env.KV, 'repos', DEFAULT_REPOS),
+    getData<ShareLink[]>(c.env.KV, 'shares', []),
+    getData<Announcement[]>(c.env.KV, 'announcements', []),
+  ])
+  const now = Date.now()
+  const activeShares = shares.filter(s => {
+    if (s.expiresAt && now > s.expiresAt) return false
+    if (s.maxDownloads && s.downloads >= s.maxDownloads) return false
+    return true
+  })
+  const totalFileSize = files.reduce((a, f) => a + (f.size || 0), 0)
+  const totalDownloads = shares.reduce((a, s) => a + (s.downloads || 0), 0)
+  const totalStars = repos.reduce((a: number, r: any) => a + (r.stars || 0), 0)
+
+  // File type distribution
+  const typeMap: Record<string, number> = {}
+  files.forEach(f => {
+    const category = f.type ? f.type.split('/')[0] : 'other'
+    typeMap[category] = (typeMap[category] || 0) + 1
+  })
+
+  // Recent uploads (last 7 days)
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000
+  const recentFiles = files.filter(f => new Date(f.uploadedAt).getTime() > weekAgo)
+
+  return c.json({
+    files: { total: files.length, totalSize: totalFileSize, recentCount: recentFiles.length, typeDistribution: typeMap },
+    websites: { total: websites.length, pinnedCount: websites.filter((w: any) => w.pinned).length },
+    repos: { total: repos.length, totalStars },
+    shares: { total: shares.length, active: activeShares.length, totalDownloads },
+    announcements: { total: announcements.length, active: announcements.filter(a => a.enabled).length },
+  })
 })
 
 // === Profile API ===
@@ -74,6 +114,32 @@ admin.post('/admin/api/websites', async (c) => {
   return c.json({ ok: true })
 })
 
+// === Website Pin Toggle ===
+admin.post('/admin/api/websites/pin', async (c) => {
+  const { id } = await c.req.json()
+  if (!id) return c.json({ error: 'Missing id' }, 400)
+  const websites = await getData(c.env.KV, 'websites', DEFAULT_WEBSITES)
+  const site = websites.find((w: any) => w.id === id)
+  if (!site) return c.json({ error: 'Website not found' }, 404)
+  ;(site as any).pinned = !(site as any).pinned
+  await kvPut(c.env.KV, 'websites', JSON.stringify(websites))
+  return c.json({ ok: true, pinned: (site as any).pinned })
+})
+
+// === Website Reorder ===
+admin.post('/admin/api/websites/reorder', async (c) => {
+  const { ids } = await c.req.json() as { ids: string[] }
+  if (!ids || !Array.isArray(ids)) return c.json({ error: 'Missing ids array' }, 400)
+  const websites = await getData(c.env.KV, 'websites', DEFAULT_WEBSITES)
+  // Reorder based on provided ids
+  const reordered = ids.map(id => websites.find((w: any) => w.id === id)).filter(Boolean)
+  // Add any items not in the ids list at the end
+  const remaining = websites.filter((w: any) => !ids.includes(w.id))
+  const final = [...reordered, ...remaining].map((w: any, i: number) => ({ ...w, order: i }))
+  await kvPut(c.env.KV, 'websites', JSON.stringify(final))
+  return c.json({ ok: true })
+})
+
 // === Repos API ===
 admin.post('/admin/api/repos', async (c) => {
   const data = await c.req.json()
@@ -83,7 +149,7 @@ admin.post('/admin/api/repos', async (c) => {
   return c.json({ ok: true })
 })
 
-// === File Upload ===
+// === File Upload (with improved MIME handling) ===
 admin.post('/admin/api/upload', async (c) => {
   const formData = await c.req.formData()
   const file = formData.get('file') as File
@@ -96,10 +162,25 @@ admin.post('/admin/api/upload', async (c) => {
     return c.json({ error: `File type .${ext} is not allowed for security reasons` }, 400)
   }
 
-  // MIME type check (allow if prefix matches or if unknown)
-  const mimeOk = !file.type || ALLOWED_MIME_PREFIXES.some(p => file.type.startsWith(p))
+  // MIME type check — relaxed: allow if prefix matches, unknown, or empty
+  const mimeOk = !file.type || file.type === '' || ALLOWED_MIME_PREFIXES.some(p => file.type.startsWith(p))
   if (!mimeOk) {
-    return c.json({ error: `MIME type ${file.type} is not allowed` }, 400)
+    // Second check: allow based on safe extension
+    const safeExtensions = new Set([
+      'zip', 'gz', 'tar', 'rar', '7z', 'bz2', 'xz',
+      'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+      'odt', 'ods', 'odp', 'rtf', 'csv', 'tsv',
+      'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp', 'ico', 'avif',
+      'mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a',
+      'mp4', 'mkv', 'avi', 'mov', 'webm', 'flv',
+      'txt', 'md', 'json', 'xml', 'yaml', 'yml', 'toml',
+      'html', 'css', 'ts', 'tsx', 'jsx', 'py', 'rs', 'go', 'java', 'c', 'cpp', 'h',
+      'woff', 'woff2', 'ttf', 'otf', 'eot',
+      'apk', 'dmg', 'iso', 'deb', 'rpm', 'wasm', 'epub', 'mobi',
+    ])
+    if (!safeExtensions.has(ext)) {
+      return c.json({ error: `MIME type ${file.type} is not allowed` }, 400)
+    }
   }
 
   const settings = await getData(c.env.KV, 'settings', DEFAULT_SETTINGS)
@@ -168,6 +249,71 @@ admin.post('/admin/api/upload', async (c) => {
   })
   await kvPut(c.env.KV, 'files', JSON.stringify(files))
   return c.json({ ok: true, key: safeKey })
+})
+
+// === File Rename ===
+admin.post('/admin/api/rename-file', async (c) => {
+  const data = await c.req.json()
+  const result = validate(FileRenameSchema, data)
+  if (!result.success) return c.json({ error: result.error }, 400)
+
+  const files: FileMeta[] = await getData(c.env.KV, 'files', [])
+  const file = files.find(f => f.key === result.data.key)
+  if (!file) return c.json({ error: 'File not found' }, 404)
+
+  file.displayName = result.data.displayName
+  await kvPut(c.env.KV, 'files', JSON.stringify(files))
+  return c.json({ ok: true })
+})
+
+// === Batch Delete Files ===
+admin.post('/admin/api/delete-files-batch', async (c) => {
+  const { keys } = await c.req.json() as { keys: string[] }
+  if (!keys || !Array.isArray(keys) || keys.length === 0) {
+    return c.json({ error: 'Missing keys array' }, 400)
+  }
+  if (keys.length > 50) return c.json({ error: 'Max 50 files at once' }, 400)
+
+  const keySet = new Set(keys)
+  const files: FileMeta[] = await getData(c.env.KV, 'files', [])
+  const shares: ShareLink[] = JSON.parse(await kvGet(c.env.KV, 'shares') || '[]')
+  const settings = await getData(c.env.KV, 'settings', DEFAULT_SETTINGS)
+
+  // Delete file data from KV
+  const deletePromises: Promise<void>[] = []
+  const filesToDelete = files.filter(f => keySet.has(f.key))
+
+  for (const f of filesToDelete) {
+    deletePromises.push(kvDelete(c.env.KV, `file:${f.key}`))
+    // Delete from local server if applicable
+    if (f.storageType === 'local' && settings.localServerUrl) {
+      try {
+        const serverUrl = settings.localServerUrl.replace(/\/$/, '')
+        const secret = await kvGet(c.env.KV, 'fileserver_secret') || ''
+        deletePromises.push(
+          fetch(`${serverUrl}/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(secret ? { [FILE_SERVER_SECRET_HEADER]: secret } : {}) },
+            body: JSON.stringify({ filename: f.storedName || f.key, path: settings.localStoragePath }),
+          }).then(() => {}).catch(() => {})
+        )
+      } catch { /* best effort */ }
+    }
+  }
+
+  await Promise.allSettled(deletePromises)
+
+  // Update files list
+  const newFiles = files.filter(f => !keySet.has(f.key))
+  await kvPut(c.env.KV, 'files', JSON.stringify(newFiles))
+
+  // Cascade: delete shares referencing deleted files
+  const newShares = shares.filter(s => !keySet.has(s.fileKey))
+  if (newShares.length !== shares.length) {
+    await kvPut(c.env.KV, 'shares', JSON.stringify(newShares))
+  }
+
+  return c.json({ ok: true, deleted: filesToDelete.length })
 })
 
 // === Add External Link ===
@@ -270,6 +416,71 @@ admin.post('/admin/api/username', async (c) => {
   if (!result.success) return c.json({ error: result.error }, 400)
   await kvPut(c.env.KV, 'admin_username', result.data.newUsername)
   return c.json({ ok: true })
+})
+
+// === Data Export (all data as JSON) ===
+admin.get('/admin/api/export', async (c) => {
+  const [profile, websites, repos, files, settings, announcements, shares] = await Promise.all([
+    getData(c.env.KV, 'profile', DEFAULT_PROFILE),
+    getData(c.env.KV, 'websites', DEFAULT_WEBSITES),
+    getData(c.env.KV, 'repos', DEFAULT_REPOS),
+    getData(c.env.KV, 'files', []),
+    getData(c.env.KV, 'settings', DEFAULT_SETTINGS),
+    getData<Announcement[]>(c.env.KV, 'announcements', []),
+    getData<ShareLink[]>(c.env.KV, 'shares', []),
+  ])
+  const exportData = {
+    version: '1.0',
+    exportedAt: new Date().toISOString(),
+    profile,
+    websites,
+    repos,
+    files, // metadata only (not actual file content)
+    settings,
+    announcements,
+    shares,
+  }
+  return new Response(JSON.stringify(exportData, null, 2), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Disposition': `attachment; filename="portal-backup-${new Date().toISOString().slice(0, 10)}.json"`,
+    },
+  })
+})
+
+// === Data Import ===
+admin.post('/admin/api/import', async (c) => {
+  const data = await c.req.json()
+  if (!data || !data.version) return c.json({ error: 'Invalid import data' }, 400)
+
+  const writeOps: Promise<void>[] = []
+  let importedCount = 0
+
+  if (data.profile) {
+    const r = validate(ProfileSchema, data.profile)
+    if (r.success) { writeOps.push(kvPut(c.env.KV, 'profile', JSON.stringify(r.data))); importedCount++ }
+  }
+  if (data.websites && Array.isArray(data.websites)) {
+    const r = validate(WebsitesArraySchema, data.websites)
+    if (r.success) { writeOps.push(kvPut(c.env.KV, 'websites', JSON.stringify(r.data))); importedCount++ }
+  }
+  if (data.repos && Array.isArray(data.repos)) {
+    const r = validate(ReposArraySchema, data.repos)
+    if (r.success) { writeOps.push(kvPut(c.env.KV, 'repos', JSON.stringify(r.data))); importedCount++ }
+  }
+  if (data.files && Array.isArray(data.files)) {
+    writeOps.push(kvPut(c.env.KV, 'files', JSON.stringify(data.files))); importedCount++
+  }
+  if (data.settings) {
+    const r = validate(SettingsSchema, data.settings)
+    if (r.success) { writeOps.push(kvPut(c.env.KV, 'settings', JSON.stringify(r.data))); importedCount++ }
+  }
+  if (data.announcements && Array.isArray(data.announcements)) {
+    writeOps.push(kvPut(c.env.KV, 'announcements', JSON.stringify(data.announcements))); importedCount++
+  }
+
+  await Promise.all(writeOps)
+  return c.json({ ok: true, imported: importedCount })
 })
 
 // === Announcement Management ===

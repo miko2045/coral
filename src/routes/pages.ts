@@ -34,7 +34,13 @@ pages.get('/projects', async (c) => {
     getData(c.env.KV, 'websites', DEFAULT_WEBSITES),
     getData(c.env.KV, 'profile', DEFAULT_PROFILE),
   ])
-  return c.render(projectsPage(websites, lang), { title: `${t('home', 'webProjects', lang)} — ${profile.name}`, lang })
+  // Sort: pinned first, then by order
+  const sorted = [...websites].sort((a: any, b: any) => {
+    if (a.pinned && !b.pinned) return -1
+    if (!a.pinned && b.pinned) return 1
+    return (a.order || 0) - (b.order || 0)
+  })
+  return c.render(projectsPage(sorted, lang), { title: `${t('home', 'webProjects', lang)} — ${profile.name}`, lang })
 })
 
 // GitHub

@@ -1161,3 +1161,141 @@
   align-items: center;
   gap: 6px;
 }
+
+/* ==========================================
+   NEW: Dashboard Stats Grid
+   ========================================== */
+.adm-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.adm-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 12px);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.adm-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+.adm-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.adm-stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.adm-stat-num {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.adm-stat-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ==========================================
+   NEW: Pinned Items
+   ========================================== */
+.adm-item-pinned {
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
+}
+
+.adm-pin-indicator {
+  color: var(--accent);
+  font-size: 0.7rem;
+  margin-left: 4px;
+}
+
+/* ==========================================
+   NEW: File Management
+   ========================================== */
+.adm-file-checkbox {
+  display: flex;
+  align-items: center;
+  padding: 0 4px 0 0;
+  cursor: pointer;
+}
+
+.adm-file-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.adm-btn-danger {
+  background: #EF4444 !important;
+  color: white !important;
+  border: none !important;
+}
+
+.adm-btn-danger:hover {
+  background: #DC2626 !important;
+}
+
+/* ==========================================
+   NEW: Pinned Badge (Projects Page)
+   ========================================== */
+.pj-card-pinned {
+  border: 2px solid var(--accent) !important;
+  position: relative;
+}
+
+.pj-pin-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--accent);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 2;
+}
+
+.pj-pin-badge i {
+  font-size: 0.6rem;
+}
+
+@media (max-width: 768px) {
+  .adm-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .adm-stat-card {
+    padding: 14px;
+  }
+  .adm-stat-num {
+    font-size: 1.2rem;
+  }
+}

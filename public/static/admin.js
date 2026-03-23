@@ -1,53 +1,53 @@
 // ========================================
-// ADMIN PANEL — Frontend Logic (with i18n)
+// ADMIN PANEL — Frontend Logic (v2: dashboard, pin, file management, export/import)
 // ========================================
 (() => {
   'use strict';
 
-  const D = window.__DATA__ || { websites: [], repos: [], files: [], settings: {}, lang: 'zh', csrfToken: '' };
+  const D = window.__DATA__ || { websites: [], repos: [], files: [], settings: {}, lang: 'zh', csrfToken: '', shares: [] };
   let websites = [...D.websites];
   let repos = [...D.repos];
   let settings = { ...D.settings };
   const lang = D.lang || 'zh';
   const csrfToken = D.csrfToken || '';
+  const zh = lang === 'zh';
 
   // === i18n strings ===
   const i = {
-    profileSaved: lang === 'zh' ? '个人信息已保存!' : 'Profile saved!',
-    websitesSaved: lang === 'zh' ? '网站已保存!' : 'Websites saved!',
-    reposSaved: lang === 'zh' ? '仓库已保存!' : 'Repos saved!',
-    uploaded: lang === 'zh' ? '上传成功!' : 'uploaded!',
-    uploadFailed: lang === 'zh' ? '上传失败' : 'Upload failed',
-    linkAdded: lang === 'zh' ? '链接已添加!' : 'Link added!',
-    fileDeleted: lang === 'zh' ? '文件已删除!' : 'File deleted!',
-    settingsSaved: lang === 'zh' ? '设置已保存! 刷新中...' : 'Settings saved! Refreshing...',
-    pwUpdated: lang === 'zh' ? '密码已更新!' : 'Password updated!',
-    fillBoth: lang === 'zh' ? '请填写两个字段' : 'Please fill both fields',
-    deleteWebsite: lang === 'zh' ? '确定删除此网站?' : 'Delete this website?',
-    deleteRepo: lang === 'zh' ? '确定删除此仓库?' : 'Delete this repo?',
-    deleteFile: lang === 'zh' ? '确定删除此文件?' : 'Delete this file?',
-    addWebsite: lang === 'zh' ? '添加网站' : 'Add Website',
-    editWebsite: lang === 'zh' ? '编辑网站' : 'Edit Website',
-    addRepo: lang === 'zh' ? '添加仓库' : 'Add Repo',
-    editRepo: lang === 'zh' ? '编辑仓库' : 'Edit Repo',
-    addExtLink: lang === 'zh' ? '添加外部链接' : 'Add External Link',
-    uploading: lang === 'zh' ? '上传中' : 'Uploading',
-    // Form labels
-    lblTitle: lang === 'zh' ? '标题' : 'Title',
-    lblUrl: lang === 'zh' ? 'URL' : 'URL',
-    lblDesc: lang === 'zh' ? '描述' : 'Description',
-    lblTags: lang === 'zh' ? '标签(逗号分隔)' : 'Tags (comma sep.)',
-    lblColor: lang === 'zh' ? '颜色' : 'Color',
-    lblIcon: lang === 'zh' ? '图标' : 'Icon',
-    lblName: lang === 'zh' ? '名称' : 'Name',
-    lblLang: lang === 'zh' ? '语言' : 'Language',
-    lblStars: lang === 'zh' ? '星标' : 'Stars',
-    lblForks: lang === 'zh' ? '分支' : 'Forks',
-    lblDisplayName: lang === 'zh' ? '显示名称' : 'Display Name',
-    lblDownloadUrl: lang === 'zh' ? '下载链接' : 'Download URL',
-    lblFileName: lang === 'zh' ? '文件名' : 'File Name',
-    lblFileSize: lang === 'zh' ? '文件大小(字节)' : 'File Size (bytes)',
-    lblMimeType: lang === 'zh' ? 'MIME 类型' : 'MIME Type',
+    profileSaved: zh ? '个人信息已保存!' : 'Profile saved!',
+    websitesSaved: zh ? '网站已保存!' : 'Websites saved!',
+    reposSaved: zh ? '仓库已保存!' : 'Repos saved!',
+    uploaded: zh ? '上传成功!' : 'uploaded!',
+    uploadFailed: zh ? '上传失败' : 'Upload failed',
+    linkAdded: zh ? '链接已添加!' : 'Link added!',
+    fileDeleted: zh ? '文件已删除!' : 'File deleted!',
+    settingsSaved: zh ? '设置已保存! 刷新中...' : 'Settings saved! Refreshing...',
+    pwUpdated: zh ? '密码已更新!' : 'Password updated!',
+    fillBoth: zh ? '请填写两个字段' : 'Please fill both fields',
+    deleteWebsite: zh ? '确定删除此网站?' : 'Delete this website?',
+    deleteRepo: zh ? '确定删除此仓库?' : 'Delete this repo?',
+    deleteFile: zh ? '确定删除此文件?' : 'Delete this file?',
+    addWebsite: zh ? '添加网站' : 'Add Website',
+    editWebsite: zh ? '编辑网站' : 'Edit Website',
+    addRepo: zh ? '添加仓库' : 'Add Repo',
+    editRepo: zh ? '编辑仓库' : 'Edit Repo',
+    addExtLink: zh ? '添加外部链接' : 'Add External Link',
+    uploading: zh ? '上传中' : 'Uploading',
+    lblTitle: zh ? '标题' : 'Title',
+    lblUrl: zh ? 'URL' : 'URL',
+    lblDesc: zh ? '描述' : 'Description',
+    lblTags: zh ? '标签(逗号分隔)' : 'Tags (comma sep.)',
+    lblColor: zh ? '颜色' : 'Color',
+    lblIcon: zh ? '图标' : 'Icon',
+    lblName: zh ? '名称' : 'Name',
+    lblLang: zh ? '语言' : 'Language',
+    lblStars: zh ? '星标' : 'Stars',
+    lblForks: zh ? '分支' : 'Forks',
+    lblDisplayName: zh ? '显示名称' : 'Display Name',
+    lblDownloadUrl: zh ? '下载链接' : 'Download URL',
+    lblFileName: zh ? '文件名' : 'File Name',
+    lblFileSize: zh ? '文件大小(字节)' : 'File Size (bytes)',
+    lblMimeType: zh ? 'MIME 类型' : 'MIME Type',
   };
 
   // === Helpers ===
@@ -55,7 +55,6 @@
     const c = document.getElementById('toastContainer');
     const t = document.createElement('div');
     t.className = `adm-toast adm-toast-${type}`;
-    // Use textContent to prevent XSS from error messages
     const icon = document.createElement('i');
     icon.className = `fa-solid fa-${type === 'success' ? 'check' : 'triangle-exclamation'}`;
     t.appendChild(icon);
@@ -119,8 +118,36 @@
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
   modalSave.addEventListener('click', () => { if (onModalSave) onModalSave(); });
 
+  // =============================================
+  // === DATA EXPORT / IMPORT ===
+  // =============================================
+  document.getElementById('exportData')?.addEventListener('click', () => {
+    window.location.href = '/admin/api/export';
+    toast(zh ? '数据导出中...' : 'Exporting data...');
+  });
+
+  const importInput = document.getElementById('importDataInput');
+  if (importInput) {
+    importInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (!data.version) throw new Error(zh ? '无效的备份文件' : 'Invalid backup file');
+        if (!confirm(zh ? '导入将覆盖现有数据，确定继续？' : 'Import will overwrite existing data. Continue?')) return;
+        await api('/admin/api/import', data);
+        toast(zh ? '数据导入成功! 刷新中...' : 'Data imported! Refreshing...');
+        setTimeout(() => location.reload(), 1000);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+      importInput.value = '';
+    });
+  }
+
   // === Profile ===
-  document.getElementById('saveProfile').addEventListener('click', async () => {
+  document.getElementById('saveProfile')?.addEventListener('click', async () => {
     const data = {
       name: document.getElementById('pf-name').value,
       tagline: document.getElementById('pf-tagline').value,
@@ -143,7 +170,9 @@
     } catch (e) { toast(e.message, 'error'); }
   });
 
-  // === Websites CRUD ===
+  // =============================================
+  // === WEBSITES CRUD + PIN + REORDER ===
+  // =============================================
   const ICON_OPTIONS = [
     'fa-solid fa-globe', 'fa-solid fa-cloud', 'fa-solid fa-code', 'fa-solid fa-wand-magic-sparkles',
     'fa-solid fa-camera-retro', 'fa-solid fa-palette', 'fa-solid fa-rocket', 'fa-solid fa-bolt',
@@ -185,13 +214,16 @@
 
   function renderWebsites() {
     const list = document.getElementById('websitesList');
-    list.innerHTML = websites.map(w => `
-      <div class="adm-item" data-id="${w.id}">
+    list.innerHTML = websites.map((w, idx) => `
+      <div class="adm-item${w.pinned ? ' adm-item-pinned' : ''}" data-id="${w.id}">
         <div class="adm-item-icon" style="color:${w.color || '#E8A838'}"><i class="${w.icon || 'fa-solid fa-globe'}"></i></div>
-        <div class="adm-item-body"><strong>${esc(w.title)}</strong><span class="adm-item-sub">${esc(w.description)}</span></div>
+        <div class="adm-item-body"><strong>${esc(w.title)} ${w.pinned ? '<span class="adm-pin-indicator"><i class="fa-solid fa-thumbtack"></i></span>' : ''}</strong><span class="adm-item-sub">${esc(w.description)}</span></div>
         <div class="adm-item-actions">
+          <button class="adm-btn-icon pin-website" title="${zh ? '置顶/取消' : 'Pin/Unpin'}" style="${w.pinned ? 'color:var(--accent)' : ''}"><i class="fa-solid fa-thumbtack"></i></button>
+          <button class="adm-btn-icon move-up-website" title="${zh ? '上移' : 'Move Up'}"><i class="fa-solid fa-arrow-up"></i></button>
+          <button class="adm-btn-icon move-down-website" title="${zh ? '下移' : 'Move Down'}"><i class="fa-solid fa-arrow-down"></i></button>
           <button class="adm-btn-icon edit-website" title="${i.editWebsite}"><i class="fa-solid fa-pen"></i></button>
-          <button class="adm-btn-icon adm-btn-icon-danger delete-website" title="${lang === 'zh' ? '删除' : 'Delete'}"><i class="fa-solid fa-trash"></i></button>
+          <button class="adm-btn-icon adm-btn-icon-danger delete-website" title="${zh ? '删除' : 'Delete'}"><i class="fa-solid fa-trash"></i></button>
         </div>
       </div>`).join('');
     bindWebsiteEvents();
@@ -217,17 +249,49 @@
         saveWebsites();
       });
     });
+    // Pin toggle
+    document.querySelectorAll('.pin-website').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.closest('.adm-item').dataset.id;
+        const w = websites.find(x => x.id === id);
+        if (!w) return;
+        w.pinned = !w.pinned;
+        await saveWebsites();
+      });
+    });
+    // Move up
+    document.querySelectorAll('.move-up-website').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.closest('.adm-item').dataset.id;
+        const idx = websites.findIndex(x => x.id === id);
+        if (idx <= 0) return;
+        [websites[idx - 1], websites[idx]] = [websites[idx], websites[idx - 1]];
+        saveWebsites();
+      });
+    });
+    // Move down
+    document.querySelectorAll('.move-down-website').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.closest('.adm-item').dataset.id;
+        const idx = websites.findIndex(x => x.id === id);
+        if (idx < 0 || idx >= websites.length - 1) return;
+        [websites[idx], websites[idx + 1]] = [websites[idx + 1], websites[idx]];
+        saveWebsites();
+      });
+    });
   }
 
-  document.getElementById('addWebsite').addEventListener('click', () => {
+  document.getElementById('addWebsite')?.addEventListener('click', () => {
     openModal(i.addWebsite, websiteFormHTML(), () => {
-      websites.push({ id: uid(), ...getWebsiteFromModal() });
+      websites.push({ id: uid(), ...getWebsiteFromModal(), pinned: false, order: websites.length });
       saveWebsites();
     });
   });
   bindWebsiteEvents();
 
-  // === Repos CRUD ===
+  // =============================================
+  // === REPOS CRUD ===
+  // =============================================
   function repoFormHTML(r = {}) {
     return `<div class="adm-form-grid">
       <div class="adm-field"><label>${i.lblName}</label><input id="mr-name" value="${esc(r.name || '')}" /></div>
@@ -267,7 +331,7 @@
         <div class="adm-item-body"><strong>${esc(r.name)}</strong><span class="adm-item-sub">${esc(r.description)}</span></div>
         <div class="adm-item-actions">
           <button class="adm-btn-icon edit-repo" title="${i.editRepo}"><i class="fa-solid fa-pen"></i></button>
-          <button class="adm-btn-icon adm-btn-icon-danger delete-repo" title="${lang === 'zh' ? '删除' : 'Delete'}"><i class="fa-solid fa-trash"></i></button>
+          <button class="adm-btn-icon adm-btn-icon-danger delete-repo" title="${zh ? '删除' : 'Delete'}"><i class="fa-solid fa-trash"></i></button>
         </div>
       </div>`).join('');
     bindRepoEvents();
@@ -295,7 +359,7 @@
     });
   }
 
-  document.getElementById('addRepo').addEventListener('click', () => {
+  document.getElementById('addRepo')?.addEventListener('click', () => {
     openModal(i.addRepo, repoFormHTML(), () => {
       repos.push({ id: uid(), ...getRepoFromModal() });
       saveRepos();
@@ -303,7 +367,9 @@
   });
   bindRepoEvents();
 
-  // === File Upload (KV mode) ===
+  // =============================================
+  // === FILE UPLOAD ===
+  // =============================================
   const uploadZone = document.getElementById('uploadZone');
   const fileInput = document.getElementById('fileInput');
   const uploadProgress = document.getElementById('uploadProgress');
@@ -328,9 +394,9 @@
 
   async function uploadFiles(fileList) {
     for (const file of fileList) {
-      uploadProgress.style.display = 'block';
-      progressFill.style.width = '0%';
-      progressText.textContent = `${i.uploading} ${file.name}...`;
+      if (uploadProgress) uploadProgress.style.display = 'block';
+      if (progressFill) progressFill.style.width = '0%';
+      if (progressText) progressText.textContent = `${i.uploading} ${file.name}...`;
 
       const formData = new FormData();
       formData.append('file', file);
@@ -338,29 +404,137 @@
 
       try {
         let p = 0;
-        const iv = setInterval(() => { p = Math.min(p + Math.random() * 15, 85); progressFill.style.width = p + '%'; }, 300);
+        const iv = setInterval(() => { p = Math.min(p + Math.random() * 15, 85); if (progressFill) progressFill.style.width = p + '%'; }, 300);
         const res = await fetch('/admin/api/upload', { method: 'POST', body: formData, headers: { 'X-CSRF-Token': csrfToken } });
         clearInterval(iv);
         if (!res.ok) { const e = await res.json(); throw new Error(e.error || i.uploadFailed); }
-        progressFill.style.width = '100%';
-        progressText.textContent = `${file.name} ${i.uploaded}`;
+        if (progressFill) progressFill.style.width = '100%';
+        if (progressText) progressText.textContent = `${file.name} ${i.uploaded}`;
         toast(`${file.name} ${i.uploaded}`);
-        setTimeout(() => { uploadProgress.style.display = 'none'; }, 1500);
+        setTimeout(() => { if (uploadProgress) uploadProgress.style.display = 'none'; }, 1500);
         setTimeout(() => location.reload(), 1800);
       } catch (e) {
-        progressFill.style.width = '0%';
-        progressText.textContent = `Error: ${e.message}`;
+        if (progressFill) progressFill.style.width = '0%';
+        if (progressText) progressText.textContent = `Error: ${e.message}`;
         toast(e.message, 'error');
       }
     }
   }
+
+  // =============================================
+  // === FILE SEARCH & BATCH OPERATIONS ===
+  // =============================================
+  const fileSearch = document.getElementById('fileSearch');
+  const selectAllCb = document.getElementById('selectAllFiles');
+  const batchDeleteBtn = document.getElementById('batchDeleteFiles');
+  const batchDeleteCount = document.getElementById('batchDeleteCount');
+
+  function updateBatchDeleteUI() {
+    const checked = document.querySelectorAll('.file-select-cb:checked');
+    if (batchDeleteBtn) batchDeleteBtn.style.display = checked.length > 0 ? '' : 'none';
+    if (batchDeleteCount) batchDeleteCount.textContent = `${zh ? '删除' : 'Delete'} ${checked.length}`;
+  }
+
+  if (fileSearch) {
+    fileSearch.addEventListener('input', () => {
+      const q = fileSearch.value.toLowerCase();
+      document.querySelectorAll('.adm-file-item').forEach(item => {
+        const name = item.getAttribute('data-name') || '';
+        item.style.display = name.includes(q) ? '' : 'none';
+      });
+    });
+  }
+
+  if (selectAllCb) {
+    selectAllCb.addEventListener('change', () => {
+      document.querySelectorAll('.file-select-cb').forEach(cb => {
+        const item = cb.closest('.adm-file-item');
+        if (item && item.style.display !== 'none') cb.checked = selectAllCb.checked;
+      });
+      updateBatchDeleteUI();
+    });
+  }
+
+  // Bind checkbox changes
+  document.addEventListener('change', (e) => {
+    if (e.target.classList.contains('file-select-cb')) updateBatchDeleteUI();
+  });
+
+  // Batch delete
+  if (batchDeleteBtn) {
+    batchDeleteBtn.addEventListener('click', async () => {
+      const checked = document.querySelectorAll('.file-select-cb:checked');
+      const keys = Array.from(checked).map(cb => cb.getAttribute('data-key'));
+      if (keys.length === 0) return;
+      if (!confirm(zh ? `确定删除选中的 ${keys.length} 个文件?` : `Delete ${keys.length} selected files?`)) return;
+      try {
+        await api('/admin/api/delete-files-batch', { keys });
+        toast(zh ? `${keys.length} 个文件已删除!` : `${keys.length} files deleted!`);
+        checked.forEach(cb => cb.closest('.adm-item')?.remove());
+        updateBatchDeleteUI();
+      } catch (e) { toast(e.message, 'error'); }
+    });
+  }
+
+  // =============================================
+  // === FILE RENAME ===
+  // =============================================
+  document.addEventListener('click', (e) => {
+    const renameBtn = e.target.closest('.rename-file');
+    if (renameBtn) {
+      const key = renameBtn.getAttribute('data-key');
+      const currentName = renameBtn.getAttribute('data-name') || '';
+      openModal(zh ? '重命名文件' : 'Rename File', `
+        <div class="adm-field"><label>${zh ? '新名称' : 'New Name'}</label><input id="rename-input" value="${esc(currentName)}" autofocus /></div>
+      `, async () => {
+        const newName = document.getElementById('rename-input')?.value?.trim();
+        if (!newName) return toast(zh ? '请输入名称' : 'Please enter a name', 'error');
+        try {
+          await api('/admin/api/rename-file', { key, displayName: newName });
+          toast(zh ? '已重命名!' : 'Renamed!');
+          closeModal();
+          // Update DOM
+          const item = document.querySelector(`.adm-file-item[data-key="${key}"]`);
+          if (item) {
+            const strong = item.querySelector('.adm-item-body strong');
+            if (strong) strong.textContent = newName;
+            item.setAttribute('data-name', newName.toLowerCase());
+            renameBtn.setAttribute('data-name', newName);
+          }
+        } catch (err) { toast(err.message, 'error'); }
+      });
+    }
+  });
+
+  // =============================================
+  // === FILE PREVIEW ===
+  // =============================================
+  document.addEventListener('click', (e) => {
+    const previewBtn = e.target.closest('.preview-file');
+    if (previewBtn) {
+      const url = previewBtn.getAttribute('data-url');
+      openModal(zh ? '图片预览' : 'Image Preview', `
+        <div style="text-align:center;padding:8px">
+          <img src="${url}" style="max-width:100%;max-height:60vh;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15)" />
+        </div>
+      `, () => closeModal());
+      // Hide save button for preview
+      if (modalSave) modalSave.style.display = 'none';
+      // Restore on close
+      const origClose = closeModal;
+      window._restoreModal = () => { if (modalSave) modalSave.style.display = ''; };
+    }
+  });
+
+  // Restore modal save button on close
+  const origCloseModal = closeModal;
 
   // === Add Link File (External mode) ===
   const addLinkBtn = document.getElementById('addLinkFile');
   if (addLinkBtn) {
     addLinkBtn.addEventListener('click', () => {
       const html = `<div class="adm-form-grid">
-        <div class="adm-field adm-field-full"><label>${i.lblDisplayName}</label><input id="lf-name" placeholder="${lang === 'zh' ? '我的简历 2025' : 'My Resume 2025'}" /></div>
+        <div class="adm-field adm-field-full"><label>${i.lblDisplayName}</label><input id="lf-name" placeholder="${zh ? '我的简历 2025' : 'My Resume 2025'}" /></div>
         <div class="adm-field adm-field-full"><label>${i.lblDownloadUrl}</label><input id="lf-url" placeholder="https://drive.google.com/..." /></div>
         <div class="adm-field"><label>${i.lblFileName}</label><input id="lf-filename" placeholder="resume.pdf" /></div>
         <div class="adm-field"><label>${i.lblFileSize}</label><input id="lf-size" type="number" placeholder="0" /></div>
@@ -392,6 +566,7 @@
         await api('/admin/api/delete-file', { key });
         toast(i.fileDeleted);
         btn.closest('.adm-item').remove();
+        updateBatchDeleteUI();
       } catch (e) { toast(e.message, 'error'); }
     });
   });
@@ -405,15 +580,10 @@
   const addLinkBtnEl = document.getElementById('addLinkFile');
 
   function updateStorageModeUI(mode) {
-    // Show/hide upload zone (for KV and local modes)
     if (uploadZoneEl) uploadZoneEl.style.display = (mode === 'kv' || mode === 'local') ? '' : 'none';
-    // Show/hide external hint
     if (externalHintEl) externalHintEl.style.display = (mode === 'external') ? '' : 'none';
-    // Show/hide local upload hint
     if (localUploadHintEl) localUploadHintEl.style.display = (mode === 'local') ? '' : 'none';
-    // Show/hide add link button
     if (addLinkBtnEl) addLinkBtnEl.style.display = (mode === 'external') ? '' : 'none';
-    // Show/hide local config fields
     if (localConfigEl) localConfigEl.style.display = (mode === 'local') ? '' : 'none';
   }
 
@@ -457,11 +627,11 @@
   document.getElementById('changeUsername')?.addEventListener('click', async () => {
     const newUsername = document.getElementById('set-newUsername')?.value;
     if (!newUsername || newUsername.trim().length < 2) {
-      return toast(lang === 'zh' ? '用户名至少2位' : 'Username must be at least 2 characters', 'error');
+      return toast(zh ? '用户名至少2位' : 'Username must be at least 2 characters', 'error');
     }
     try {
       await api('/admin/api/username', { newUsername: newUsername.trim() });
-      toast(lang === 'zh' ? '用户名已更新!' : 'Username updated!');
+      toast(zh ? '用户名已更新!' : 'Username updated!');
       document.getElementById('set-newUsername').value = '';
     } catch (e) { toast(e.message, 'error'); }
   });
@@ -480,8 +650,8 @@
       if (shares.length === 0) {
         container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-secondary)">
           <i class="fa-solid fa-share-nodes" style="font-size:2rem;margin-bottom:8px;display:block;opacity:0.5"></i>
-          ${lang === 'zh' ? '暂无分享链接' : 'No share links yet'}
-          <br><small>${lang === 'zh' ? '在下载页面点击分享按钮创建' : 'Create one from the Downloads page'}</small>
+          ${zh ? '暂无分享链接' : 'No share links yet'}
+          <br><small>${zh ? '在下载页面点击分享按钮创建' : 'Create one from the Downloads page'}</small>
         </div>`;
         return;
       }
@@ -491,11 +661,11 @@
         const isExpired = s.expiresAt && now > s.expiresAt;
         const isMaxed = s.maxDownloads && s.downloads >= s.maxDownloads;
         const statusColor = (isExpired || isMaxed) ? '#EF4444' : '#22C55E';
-        const statusText = isExpired ? (lang === 'zh' ? '已过期' : 'Expired') 
-          : isMaxed ? (lang === 'zh' ? '已达上限' : 'Limit reached')
-          : (lang === 'zh' ? '有效' : 'Active');
+        const statusText = isExpired ? (zh ? '已过期' : 'Expired') 
+          : isMaxed ? (zh ? '已达上限' : 'Limit reached')
+          : (zh ? '有效' : 'Active');
         const hasPassword = s.password ? '<i class="fa-solid fa-lock" style="color:var(--accent);margin-left:6px" title="Password protected"></i>' : '';
-        const expiresText = s.expiresAt ? new Date(s.expiresAt).toLocaleString() : (lang === 'zh' ? '永不' : 'Never');
+        const expiresText = s.expiresAt ? new Date(s.expiresAt).toLocaleString() : (zh ? '永不' : 'Never');
         const downloadsText = s.maxDownloads ? `${s.downloads}/${s.maxDownloads}` : `${s.downloads}/∞`;
         
         return `<div class="adm-item" data-share-id="${s.id}">
@@ -504,18 +674,17 @@
             <strong>${s.fileName}${hasPassword}</strong>
             <span class="adm-item-sub">
               <span style="color:${statusColor};font-weight:600">${statusText}</span>
-              · ${lang === 'zh' ? '下载' : 'Downloads'}: ${downloadsText}
-              · ${lang === 'zh' ? '过期' : 'Expires'}: ${expiresText}
+              · ${zh ? '下载' : 'Downloads'}: ${downloadsText}
+              · ${zh ? '过期' : 'Expires'}: ${expiresText}
             </span>
           </div>
           <div class="adm-item-actions">
             <button class="adm-btn-icon copy-share-link" data-url="${window.location.origin}/s/${s.id}" title="Copy link"><i class="fa-solid fa-copy"></i></button>
-            <button class="adm-btn-icon adm-btn-icon-danger delete-share" title="${lang === 'zh' ? '删除' : 'Delete'}"><i class="fa-solid fa-trash"></i></button>
+            <button class="adm-btn-icon adm-btn-icon-danger delete-share" title="${zh ? '删除' : 'Delete'}"><i class="fa-solid fa-trash"></i></button>
           </div>
         </div>`;
       }).join('');
       
-      // Bind copy events
       container.querySelectorAll('.copy-share-link').forEach(btn => {
         btn.addEventListener('click', () => {
           navigator.clipboard.writeText(btn.getAttribute('data-url')).then(() => {
@@ -525,15 +694,14 @@
         });
       });
       
-      // Bind delete events
       container.querySelectorAll('.delete-share').forEach(btn => {
         btn.addEventListener('click', async () => {
           const item = btn.closest('.adm-item');
           const shareId = item.getAttribute('data-share-id');
-          if (!confirm(lang === 'zh' ? '确定删除此分享链接?' : 'Delete this share link?')) return;
+          if (!confirm(zh ? '确定删除此分享链接?' : 'Delete this share link?')) return;
           try {
             await api('/admin/api/share/delete', { shareId });
-            toast(lang === 'zh' ? '分享已删除' : 'Share deleted');
+            toast(zh ? '分享已删除' : 'Share deleted');
             loadShares();
           } catch (e) { toast(e.message, 'error'); }
         });
@@ -543,7 +711,6 @@
     }
   }
   
-  // Load shares when tab is switched
   document.querySelectorAll('.adm-nav-item[data-tab="shares"]').forEach(btn => {
     btn.addEventListener('click', () => loadShares());
   });
@@ -552,17 +719,17 @@
   // === GitHub Token Pool Management ===
   // =============================================
   const tokenI = {
-    active: lang === 'zh' ? '可用' : 'Active',
-    cooldown: lang === 'zh' ? '冷却中' : 'Cooldown',
-    cooldownUntil: lang === 'zh' ? '冷却至' : 'Until',
-    noTokens: lang === 'zh' ? '未配置任何 Token — 使用公开 API (60次/小时)' : 'No tokens configured — using public API (60 req/hour)',
-    tokenCount: lang === 'zh' ? '个 Token' : ' token(s)',
-    activeTokens: lang === 'zh' ? '可用' : 'active',
-    tokensSaved: lang === 'zh' ? 'Token 配置已保存!' : 'Token config saved!',
-    remove: lang === 'zh' ? '移除' : 'Remove',
+    active: zh ? '可用' : 'Active',
+    cooldown: zh ? '冷却中' : 'Cooldown',
+    cooldownUntil: zh ? '冷却至' : 'Until',
+    noTokens: zh ? '未配置任何 Token — 使用公开 API (60次/小时)' : 'No tokens configured — using public API (60 req/hour)',
+    tokenCount: zh ? '个 Token' : ' token(s)',
+    activeTokens: zh ? '可用' : 'active',
+    tokensSaved: zh ? 'Token 配置已保存!' : 'Token config saved!',
+    remove: zh ? '移除' : 'Remove',
   };
 
-  let tokenList = []; // Current tokens in the editor
+  let tokenList = [];
 
   function rateLimitColor(percent) {
     if (percent >= 70) return '#22C55E';
@@ -575,9 +742,9 @@
     const reset = new Date(resetAt);
     const now = new Date();
     const diffMs = reset.getTime() - now.getTime();
-    if (diffMs <= 0) return lang === 'zh' ? '已重置' : 'Reset';
+    if (diffMs <= 0) return zh ? '已重置' : 'Reset';
     const mins = Math.ceil(diffMs / 60000);
-    if (mins < 60) return `${mins} ${lang === 'zh' ? '分钟后' : 'min'}`;
+    if (mins < 60) return `${mins} ${zh ? '分钟后' : 'min'}`;
     const h = Math.floor(mins / 60);
     const m = mins % 60;
     return `${h}h ${m}m`;
@@ -587,354 +754,182 @@
     const color = rateLimitColor(percent);
     const usedPercent = limit > 0 ? Math.round((used / limit) * 100) : 0;
     const resetText = formatResetTime(resetAt);
-    return `
-      <div class="adm-rl-bar-wrap">
-        <div class="adm-rl-bar-header">
-          <span class="adm-rl-bar-label">${label}</span>
-          <span class="adm-rl-bar-nums" style="color:${color}">${remaining} <small>/ ${limit}</small></span>
-        </div>
-        <div class="adm-rl-bar-track">
-          <div class="adm-rl-bar-fill" style="width:${percent}%;background:${color}"></div>
-        </div>
-        <div class="adm-rl-bar-footer">
-          <span>${lang === 'zh' ? '已用' : 'Used'}: ${used} (${usedPercent}%)</span>
-          <span>${lang === 'zh' ? '重置' : 'Reset'}: ${resetText}</span>
-        </div>
-      </div>`;
+    return `<div class="adm-rl-bar-wrap">
+      <div class="adm-rl-bar-header"><span class="adm-rl-bar-label">${label}</span><span class="adm-rl-bar-nums" style="color:${color}">${remaining} <small>/ ${limit}</small></span></div>
+      <div class="adm-rl-bar-track"><div class="adm-rl-bar-fill" style="width:${percent}%;background:${color}"></div></div>
+      <div class="adm-rl-bar-footer"><span>${zh ? '已用' : 'Used'}: ${used} (${usedPercent}%)</span><span>${zh ? '重置' : 'Reset'}: ${resetText}</span></div>
+    </div>`;
   }
 
-  // Load token status on panel show
   async function loadTokenStatus() {
     const container = document.getElementById('tokenStatusContent');
     if (!container) return;
-
     try {
-      // Fetch both pool status and real-time rate limits in parallel
-      const [statusResp, rlResp] = await Promise.all([
-        fetch('/admin/api/github-tokens'),
-        fetch('/admin/api/github-tokens/rate-limit'),
-      ]);
+      const [statusResp, rlResp] = await Promise.all([fetch('/admin/api/github-tokens'), fetch('/admin/api/github-tokens/rate-limit')]);
       if (!statusResp.ok) throw new Error('Failed to load');
       const data = await statusResp.json();
       const rlData = rlResp.ok ? await rlResp.json() : null;
 
       if (data.totalTokens === 0) {
-        container.innerHTML = `
-          <div class="adm-token-no-tokens">
-            <i class="fa-solid fa-info-circle"></i>
-            ${tokenI.noTokens}
-          </div>`;
+        container.innerHTML = `<div class="adm-token-no-tokens"><i class="fa-solid fa-info-circle"></i> ${tokenI.noTokens}</div>`;
         tokenList = [];
-        renderTokenList();
         return;
       }
 
-      // === Total summary with real rate limit ===
-      let html = `
-        <div class="adm-token-summary">
-          <span><span class="summary-num">${data.totalTokens}</span> ${tokenI.tokenCount}</span>
-          <span style="color:#22C55E;font-weight:600">${data.activeTokens} ${tokenI.activeTokens}</span>
-          <span style="color:#F59E0B;font-weight:600">${data.totalTokens - data.activeTokens} ${tokenI.cooldown}</span>
-        </div>`;
+      let html = `<div class="adm-token-summary"><span><span class="summary-num">${data.totalTokens}</span> ${tokenI.tokenCount}</span><span style="color:#22C55E;font-weight:600">${data.activeTokens} ${tokenI.activeTokens}</span><span style="color:#F59E0B;font-weight:600">${data.totalTokens - data.activeTokens} ${tokenI.cooldown}</span></div>`;
 
-      // === Aggregate rate limit bars ===
       if (rlData && rlData.total) {
-        // Find earliest reset time from all tokens
         const coreResets = (rlData.tokens || []).filter(t => t.core && t.core.resetAt).map(t => t.core.resetAt);
         const searchResets = (rlData.tokens || []).filter(t => t.search && t.search.resetAt).map(t => t.search.resetAt);
-        const earliestCoreReset = coreResets.length > 0 ? coreResets.sort()[0] : null;
-        const earliestSearchReset = searchResets.length > 0 ? searchResets.sort()[0] : null;
-
-        html += `
-        <div class="adm-rl-total">
-          <h4 class="adm-rl-total-title"><i class="fa-solid fa-chart-pie"></i> ${lang === 'zh' ? '总配额概览' : 'Total Quota Overview'}</h4>
-          <div class="adm-rl-total-grid">
-            ${rateLimitBar(lang === 'zh' ? 'Core API' : 'Core API', rlData.total.core.used, rlData.total.core.remaining, rlData.total.core.limit, rlData.total.core.percent, earliestCoreReset)}
-            ${rateLimitBar(lang === 'zh' ? 'Search API (排行榜)' : 'Search API (Trending)', rlData.total.search.used, rlData.total.search.remaining, rlData.total.search.limit, rlData.total.search.percent, earliestSearchReset)}
-          </div>
-        </div>`;
+        html += `<div class="adm-rl-total"><h4 class="adm-rl-total-title"><i class="fa-solid fa-chart-pie"></i> ${zh ? '总配额概览' : 'Total Quota Overview'}</h4><div class="adm-rl-total-grid">
+          ${rateLimitBar('Core API', rlData.total.core.used, rlData.total.core.remaining, rlData.total.core.limit, rlData.total.core.percent, coreResets.sort()[0] || null)}
+          ${rateLimitBar(zh ? 'Search API (排行榜)' : 'Search API (Trending)', rlData.total.search.used, rlData.total.search.remaining, rlData.total.search.limit, rlData.total.search.percent, searchResets.sort()[0] || null)}
+        </div></div>`;
       }
 
-      // === Per-token cards with rate limit ===
       html += `<div class="adm-token-status-grid">`;
-
       data.tokens.forEach((t, idx) => {
         const stateClass = t.active ? 'active' : 'cooldown';
         const stateText = t.active ? tokenI.active : tokenI.cooldown;
         const cdText = t.cooldownUntil ? `<br><small>${tokenI.cooldownUntil} ${new Date(t.cooldownUntil).toLocaleTimeString()}</small>` : '';
-
-        // Find matching rate limit data
         const rl = rlData && rlData.tokens ? rlData.tokens[idx] : null;
-
-        html += `
-          <div class="adm-token-status-card">
-            <div class="adm-token-card-top">
-              <span class="token-index">${idx + 1}</span>
-              <div class="token-info">
-                <div class="token-masked">${t.masked}</div>
-                <div class="token-state ${stateClass}">${stateText}${cdText}</div>
-              </div>
-              <span class="adm-token-status-dot ${stateClass}"></span>
-            </div>`;
-
+        html += `<div class="adm-token-status-card"><div class="adm-token-card-top"><span class="token-index">${idx + 1}</span><div class="token-info"><div class="token-masked">${t.masked}</div><div class="token-state ${stateClass}">${stateText}${cdText}</div></div><span class="adm-token-status-dot ${stateClass}"></span></div>`;
         if (rl && !rl.error && rl.core && rl.search) {
-          html += `
-            <div class="adm-token-rl-detail">
-              ${rateLimitBar('Core', rl.core.used, rl.core.remaining, rl.core.limit, rl.core.percent, rl.core.resetAt)}
-              ${rateLimitBar('Search', rl.search.used, rl.search.remaining, rl.search.limit, rl.search.percent, rl.search.resetAt)}
-            </div>`;
+          html += `<div class="adm-token-rl-detail">${rateLimitBar('Core', rl.core.used, rl.core.remaining, rl.core.limit, rl.core.percent, rl.core.resetAt)}${rateLimitBar('Search', rl.search.used, rl.search.remaining, rl.search.limit, rl.search.percent, rl.search.resetAt)}</div>`;
         } else if (rl && rl.error) {
           html += `<div class="adm-token-rl-error"><i class="fa-solid fa-triangle-exclamation"></i> ${rl.error}</div>`;
         }
-
         html += `</div>`;
       });
-
       html += '</div>';
       container.innerHTML = html;
-
       tokenList = data.tokens.map(t => t.masked);
-
     } catch (e) {
       container.innerHTML = `<p style="color:var(--text-tertiary);text-align:center;padding:16px">Error loading status</p>`;
     }
   }
 
-  // Load actual token values for editing
   async function loadTokensForEditing() {
     try {
       const resp = await fetch('/admin/api/github-tokens');
       if (!resp.ok) return;
       const data = await resp.json();
-      // We can't get full tokens from the status API (they're masked)
-      // So we only allow adding new tokens, not editing existing ones
-      // Show masked list count
       tokenList = [];
-      if (data.totalTokens > 0) {
-        // Show existing count as placeholder
-        renderTokenListWithMasked(data.tokens);
-      } else {
-        renderTokenList();
-      }
-    } catch (e) {
-      // silently fail
-    }
+      if (data.totalTokens > 0) renderTokenListWithMasked(data.tokens);
+    } catch (e) { /* silently fail */ }
   }
 
   function renderTokenListWithMasked(tokens) {
     const container = document.getElementById('tokenListContainer');
-    if (!container) return;
-
-    if (tokens.length === 0) {
-      container.innerHTML = '';
-      return;
-    }
-
+    if (!container || tokens.length === 0) return;
     container.innerHTML = tokens.map((t, idx) => `
       <div class="adm-token-item" data-idx="${idx}">
         <span class="token-num">${idx + 1}</span>
-        <input type="text" value="${t.masked}" readonly style="opacity:0.6;cursor:default" title="Existing token (masked)" />
-        <button class="adm-btn-icon adm-btn-icon-danger remove-token-btn" title="${tokenI.remove}" data-idx="${idx}">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      </div>
-    `).join('');
-
-    // Bind remove buttons
+        <input type="text" value="${t.masked}" readonly style="opacity:0.6;cursor:default" />
+        <button class="adm-btn-icon adm-btn-icon-danger remove-token-btn" title="${tokenI.remove}" data-idx="${idx}"><i class="fa-solid fa-trash"></i></button>
+      </div>`).join('');
     container.querySelectorAll('.remove-token-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.dataset.idx);
-        // Mark for removal
-        btn.closest('.adm-token-item').style.display = 'none';
-        btn.closest('.adm-token-item').dataset.removed = 'true';
-      });
+      btn.addEventListener('click', () => { btn.closest('.adm-token-item').style.display = 'none'; btn.closest('.adm-token-item').dataset.removed = 'true'; });
     });
   }
 
-  function renderTokenList() {
-    const container = document.getElementById('tokenListContainer');
-    if (!container) return;
-    // Clear any items with data-new attribute (newly added tokens)
-    // Keep masked ones
-  }
-
-  // Add token button
   const addTokenBtn = document.getElementById('addTokenBtn');
   const newTokenInput = document.getElementById('newTokenInput');
-
   if (addTokenBtn && newTokenInput) {
     addTokenBtn.addEventListener('click', () => {
       const val = newTokenInput.value.trim();
       if (!val) return;
-
       const container = document.getElementById('tokenListContainer');
-      const idx = container.children.length;
       const item = document.createElement('div');
       item.className = 'adm-token-item';
       item.dataset.newToken = val;
-      item.innerHTML = `
-        <span class="token-num">+</span>
-        <input type="text" value="${val.slice(0, 8)}***${val.slice(-4)}" readonly style="color:#22C55E" />
-        <button class="adm-btn-icon adm-btn-icon-danger remove-new-token-btn" title="${tokenI.remove}">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      `;
+      item.innerHTML = `<span class="token-num">+</span><input type="text" value="${val.slice(0, 8)}***${val.slice(-4)}" readonly style="color:#22C55E" /><button class="adm-btn-icon adm-btn-icon-danger remove-new-token-btn" title="${tokenI.remove}"><i class="fa-solid fa-trash"></i></button>`;
       item.querySelector('.remove-new-token-btn').addEventListener('click', () => item.remove());
       container.appendChild(item);
       newTokenInput.value = '';
       newTokenInput.focus();
     });
-
-    // Also allow Enter key
-    newTokenInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        addTokenBtn.click();
-      }
-    });
+    newTokenInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); addTokenBtn.click(); } });
   }
 
-  // Save tokens button
   const saveTokensBtn = document.getElementById('saveTokensBtn');
   if (saveTokensBtn) {
     saveTokensBtn.addEventListener('click', async () => {
       const container = document.getElementById('tokenListContainer');
       const tokens = [];
-
-      // Collect new tokens (ones with data-new-token)
-      container.querySelectorAll('.adm-token-item').forEach(item => {
-        if (item.dataset.removed === 'true') return; // Skip removed
-        if (item.dataset.newToken) {
-          tokens.push(item.dataset.newToken);
-        }
-        // Note: existing masked tokens can't be re-sent, so we tell user 
-        // that saving replaces all tokens with the new list
-      });
-
-      // If there are masked (existing) items that aren't removed, we need to
-      // tell the backend to keep them. Since we can't read full token values
-      // from the client, we use a different approach: send only new tokens
-      // and let backend merge, OR send all tokens (replace mode).
-      // For simplicity, we use replace mode and warn the user.
-      
-      // Gather all non-removed existing masked tokens
       let hasExistingNotRemoved = false;
       container.querySelectorAll('.adm-token-item').forEach(item => {
         if (item.dataset.removed === 'true') return;
-        if (!item.dataset.newToken) {
-          hasExistingNotRemoved = true;
-        }
+        if (item.dataset.newToken) tokens.push(item.dataset.newToken);
+        else hasExistingNotRemoved = true;
       });
-
       try {
         if (hasExistingNotRemoved && tokens.length > 0) {
-          // We're adding new tokens to existing ones
-          // Use the append endpoint
-          const resp = await fetch('/admin/api/github-tokens/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
-            body: JSON.stringify({ tokens }),
-          });
-          if (!resp.ok) {
-            const err = await resp.json();
-            throw new Error(err.error || 'Failed');
-          }
+          const resp = await fetch('/admin/api/github-tokens/add', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }, body: JSON.stringify({ tokens }) });
+          if (!resp.ok) { const err = await resp.json(); throw new Error(err.error || 'Failed'); }
         } else if (hasExistingNotRemoved && tokens.length === 0) {
-          // Check if any existing tokens were removed
-          let anyRemoved = false;
+          const removedIndices = [];
           container.querySelectorAll('.adm-token-item').forEach(item => {
-            if (item.dataset.removed === 'true' && !item.dataset.newToken) anyRemoved = true;
+            if (item.dataset.removed === 'true' && !item.dataset.newToken) removedIndices.push(parseInt(item.dataset.idx));
           });
-          if (anyRemoved) {
-            // Need to remove tokens - use remove endpoint
-            const removedIndices = [];
-            container.querySelectorAll('.adm-token-item').forEach(item => {
-              if (item.dataset.removed === 'true' && !item.dataset.newToken) {
-                removedIndices.push(parseInt(item.dataset.idx));
-              }
-            });
-            const resp = await fetch('/admin/api/github-tokens/remove', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
-              body: JSON.stringify({ indices: removedIndices }),
-            });
-            if (!resp.ok) {
-              const err = await resp.json();
-              throw new Error(err.error || 'Failed');
-            }
-          } else {
-            // Nothing changed
-            toast(tokenI.tokensSaved);
-            return;
+          if (removedIndices.length > 0) {
+            const resp = await fetch('/admin/api/github-tokens/remove', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }, body: JSON.stringify({ indices: removedIndices }) });
+            if (!resp.ok) { const err = await resp.json(); throw new Error(err.error || 'Failed'); }
           }
         } else {
-          // No existing tokens, only new tokens (or empty)
           await api('/admin/api/github-tokens', { tokens });
         }
-
         toast(tokenI.tokensSaved);
-        // Reload status
-        setTimeout(async () => {
-          await loadTokenStatus();
-          await loadTokensForEditing();
-        }, 500);
-      } catch (e) {
-        toast(e.message, 'error');
-      }
+        setTimeout(async () => { await loadTokenStatus(); await loadTokensForEditing(); }, 500);
+      } catch (e) { toast(e.message, 'error'); }
     });
   }
 
-  // Load tokens when switching to tokens tab
   document.querySelectorAll('.adm-nav-item[data-tab]').forEach(item => {
     item.addEventListener('click', () => {
-      if (item.dataset.tab === 'tokens') {
-        loadTokenStatus();
-        loadTokensForEditing();
-      }
+      if (item.dataset.tab === 'tokens') { loadTokenStatus(); loadTokensForEditing(); }
     });
   });
 
-  // ==============================================
-  //  ANNOUNCEMENTS
-  // ==============================================
+  // =============================================
+  // === ANNOUNCEMENTS ===
+  // =============================================
   const addAnnBtn = document.getElementById('addAnnouncement');
   if (addAnnBtn) {
     addAnnBtn.addEventListener('click', () => {
-      const isZh = D.lang === 'zh';
-      openModal(isZh ? '添加公告' : 'Add Announcement', `
-        <div class="adm-field"><label>${isZh ? '内容' : 'Content'}</label><textarea id="ann-content" rows="3" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);resize:vertical" placeholder="${isZh ? '公告内容...' : 'Announcement content...'}"></textarea></div>
-        <div class="adm-field"><label>${isZh ? '类型' : 'Type'}</label>
+      openModal(zh ? '添加公告' : 'Add Announcement', `
+        <div class="adm-field"><label>${zh ? '内容' : 'Content'}</label><textarea id="ann-content" rows="3" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);resize:vertical" placeholder="${zh ? '公告内容...' : 'Announcement content...'}"></textarea></div>
+        <div class="adm-field"><label>${zh ? '类型' : 'Type'}</label>
           <select id="ann-type" style="padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);width:100%">
-            <option value="info">${isZh ? '信息 (蓝色)' : 'Info (blue)'}</option>
-            <option value="warning">${isZh ? '警告 (黄色)' : 'Warning (yellow)'}</option>
-            <option value="success">${isZh ? '成功 (绿色)' : 'Success (green)'}</option>
+            <option value="info">${zh ? '信息 (蓝色)' : 'Info (blue)'}</option>
+            <option value="warning">${zh ? '警告 (黄色)' : 'Warning (yellow)'}</option>
+            <option value="success">${zh ? '成功 (绿色)' : 'Success (green)'}</option>
           </select></div>
-        <div class="adm-field"><label>${isZh ? '过期时间 (可选)' : 'Expiration (optional)'}</label>
+        <div class="adm-field"><label>${zh ? '过期时间 (可选)' : 'Expiration (optional)'}</label>
           <select id="ann-expires" style="padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text-primary);width:100%">
-            <option value="0">${isZh ? '永不过期' : 'Never'}</option>
-            <option value="3600000">${isZh ? '1 小时' : '1 hour'}</option>
-            <option value="86400000">${isZh ? '1 天' : '1 day'}</option>
-            <option value="604800000">${isZh ? '7 天' : '7 days'}</option>
-            <option value="2592000000">${isZh ? '30 天' : '30 days'}</option>
+            <option value="0">${zh ? '永不过期' : 'Never'}</option>
+            <option value="3600000">${zh ? '1 小时' : '1 hour'}</option>
+            <option value="86400000">${zh ? '1 天' : '1 day'}</option>
+            <option value="604800000">${zh ? '7 天' : '7 days'}</option>
+            <option value="2592000000">${zh ? '30 天' : '30 days'}</option>
           </select></div>
       `, async () => {
         const content = document.getElementById('ann-content')?.value?.trim();
         const type = document.getElementById('ann-type')?.value || 'info';
         const expiresMs = parseInt(document.getElementById('ann-expires')?.value || '0');
-        if (!content) return toast(isZh ? '请输入内容' : 'Please enter content', 'error');
+        if (!content) return toast(zh ? '请输入内容' : 'Please enter content', 'error');
         try {
           const payload = { content, type, enabled: true };
           if (expiresMs > 0) payload.expiresAt = Date.now() + expiresMs;
           await api('/admin/api/announcements', payload);
           closeModal();
-          toast(isZh ? '公告已创建!' : 'Announcement created!');
+          toast(zh ? '公告已创建!' : 'Announcement created!');
           location.reload();
         } catch (e) { toast(e.message, 'error'); }
       });
     });
   }
 
-  // Toggle and delete announcements
   document.addEventListener('click', (e) => {
     const toggleBtn = e.target.closest('.toggle-announcement');
     if (toggleBtn) {
@@ -946,14 +941,13 @@
     }
     const deleteBtn = e.target.closest('.delete-announcement');
     if (deleteBtn) {
-      const isZh = D.lang === 'zh';
-      if (!confirm(isZh ? '确定删除此公告?' : 'Delete this announcement?')) return;
+      if (!confirm(zh ? '确定删除此公告?' : 'Delete this announcement?')) return;
       const item = deleteBtn.closest('[data-ann-id]');
       if (item) {
         const id = item.dataset.annId;
         api('/admin/api/announcements/delete', { id }).then(() => {
           item.remove();
-          toast(isZh ? '已删除!' : 'Deleted!');
+          toast(zh ? '已删除!' : 'Deleted!');
         }).catch(e => toast(e.message, 'error'));
       }
     }

@@ -35,6 +35,8 @@ export interface Website {
   tags: string
   color: string
   icon: string
+  pinned?: boolean
+  order?: number
 }
 
 export interface Repo {
@@ -124,10 +126,26 @@ export const DANGEROUS_EXTENSIONS = new Set([
 // Allowed MIME type prefixes for upload
 export const ALLOWED_MIME_PREFIXES = [
   'image/', 'video/', 'audio/', 'text/', 'font/',
-  'application/pdf', 'application/zip', 'application/gzip',
-  'application/x-tar', 'application/x-rar', 'application/x-7z',
-  'application/json', 'application/xml',
+  'application/pdf',
+  'application/zip', 'application/x-zip', 'application/x-zip-compressed',
+  'application/gzip', 'application/x-gzip',
+  'application/x-tar', 'application/x-bzip', 'application/x-bzip2',
+  'application/x-rar', 'application/x-rar-compressed', 'application/vnd.rar',
+  'application/x-7z', 'application/x-7z-compressed',
+  'application/x-compress', 'application/x-compressed',
+  'application/json', 'application/xml', 'application/yaml',
+  'application/javascript', 'application/typescript',
+  'application/sql', 'application/graphql',
   'application/msword', 'application/vnd.ms',
   'application/vnd.openxmlformats',
+  'application/vnd.oasis', // OpenDocument formats
+  'application/epub', 'application/x-mobipocket',
+  'application/wasm',
+  'application/x-httpd-php', 'application/x-sh', 'application/x-python',
+  'application/x-apple', 'application/x-iso9660',
+  'application/x-debian', 'application/x-rpm',
+  'application/vnd.android', 'application/vnd.apple',
+  'application/x-font', 'application/font',
   'application/octet-stream', // generic binary fallback
+  'multipart/', // multipart formats
 ]

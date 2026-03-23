@@ -1,4 +1,4 @@
-/** admin.tsx — Admin panel (with i18n, safe JSON injection, announcements) */
+/** admin.tsx — Admin panel (with i18n, safe JSON injection, announcements, dashboard stats) */
 import { raw } from 'hono/html'
 import type { Lang } from './i18n'
 import { t } from './i18n'
@@ -42,12 +42,16 @@ function loginView({ error }: { error?: string; lang?: Lang }, lang: Lang) {
   )
 }
 
-function dashboardView({ profile, websites, repos, files, settings, lang: dataLang, announcements, csrfToken }: any, lang: Lang) {
+function dashboardView({ profile, websites, repos, files, settings, lang: dataLang, announcements, shares, csrfToken }: any, lang: Lang) {
   const st = settings || { storageMode: 'kv', maxFileSize: 25 }
   const data = { csrfToken } // preserve for template access
   const otherLang = lang === 'zh' ? 'en' : 'zh'
   const langLabel = lang === 'zh' ? 'EN' : '中'
   const anns: Announcement[] = announcements || []
+  const allShares = shares || []
+  const totalFileSize = files.reduce((a: number, f: any) => a + (f.size || 0), 0)
+  const totalDownloads = allShares.reduce((a: number, s: any) => a + (s.downloads || 0), 0)
+  const totalStars = repos.reduce((a: number, r: any) => a + (r.stars || 0), 0)
 
   return (
     <div class="adm">
@@ -58,7 +62,8 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
           <span>{t('admin', 'sidebarTitle', lang)}</span>
         </div>
         <nav class="adm-nav">
-          <a href="#panel-profile" class="adm-nav-item active" data-tab="profile"><i class="fa-solid fa-user"></i> {t('admin', 'profile', lang)}</a>
+          <a href="#panel-overview" class="adm-nav-item active" data-tab="overview"><i class="fa-solid fa-chart-line"></i> {lang === 'zh' ? '仪表盘' : 'Dashboard'}</a>
+          <a href="#panel-profile" class="adm-nav-item" data-tab="profile"><i class="fa-solid fa-user"></i> {t('admin', 'profile', lang)}</a>
           <a href="#panel-websites" class="adm-nav-item" data-tab="websites"><i class="fa-solid fa-globe"></i> {t('admin', 'websitesTab', lang)}</a>
           <a href="#panel-repos" class="adm-nav-item" data-tab="repos"><i class="fa-brands fa-github"></i> {t('admin', 'githubTab', lang)}</a>
           <a href="#panel-files" class="adm-nav-item" data-tab="files"><i class="fa-solid fa-cloud-arrow-up"></i> {t('admin', 'filesTab', lang)}</a>
@@ -78,8 +83,95 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
 
       {/* Main */}
       <main class="adm-main">
+        {/* ===== Dashboard Overview ===== */}
+        <section id="panel-overview" class="adm-panel active">
+          <div class="adm-panel-header">
+            <h2><i class="fa-solid fa-chart-line"></i> {lang === 'zh' ? '仪表盘' : 'Dashboard'}</h2>
+            <div style="display:flex;gap:8px">
+              <button class="adm-btn" id="exportData" title={lang === 'zh' ? '导出数据' : 'Export Data'}><i class="fa-solid fa-download"></i> {lang === 'zh' ? '导出' : 'Export'}</button>
+              <label class="adm-btn" id="importDataLabel" title={lang === 'zh' ? '导入数据' : 'Import Data'}><i class="fa-solid fa-upload"></i> {lang === 'zh' ? '导入' : 'Import'}<input type="file" id="importDataInput" accept=".json" hidden /></label>
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div class="adm-stats-grid">
+            <div class="adm-stat-card">
+              <div class="adm-stat-icon" style="background:rgba(99,102,241,0.12);color:var(--accent)"><i class="fa-solid fa-globe"></i></div>
+              <div class="adm-stat-info">
+                <span class="adm-stat-num">{websites.length}</span>
+                <span class="adm-stat-label">{lang === 'zh' ? '网站项目' : 'Websites'}</span>
+              </div>
+            </div>
+            <div class="adm-stat-card">
+              <div class="adm-stat-icon" style="background:rgba(34,197,94,0.12);color:#22C55E"><i class="fa-brands fa-github"></i></div>
+              <div class="adm-stat-info">
+                <span class="adm-stat-num">{repos.length}</span>
+                <span class="adm-stat-label">{lang === 'zh' ? '代码仓库' : 'Repos'}</span>
+              </div>
+            </div>
+            <div class="adm-stat-card">
+              <div class="adm-stat-icon" style="background:rgba(245,158,11,0.12);color:#F59E0B"><i class="fa-solid fa-file"></i></div>
+              <div class="adm-stat-info">
+                <span class="adm-stat-num">{files.length}</span>
+                <span class="adm-stat-label">{lang === 'zh' ? '文件' : 'Files'} ({formatSize(totalFileSize)})</span>
+              </div>
+            </div>
+            <div class="adm-stat-card">
+              <div class="adm-stat-icon" style="background:rgba(236,72,153,0.12);color:#EC4899"><i class="fa-solid fa-share-nodes"></i></div>
+              <div class="adm-stat-info">
+                <span class="adm-stat-num">{allShares.length}</span>
+                <span class="adm-stat-label">{lang === 'zh' ? '分享链接' : 'Shares'} ({totalDownloads} {lang === 'zh' ? '次下载' : 'downloads'})</span>
+              </div>
+            </div>
+            <div class="adm-stat-card">
+              <div class="adm-stat-icon" style="background:rgba(139,92,246,0.12);color:#8B5CF6"><i class="fa-solid fa-star"></i></div>
+              <div class="adm-stat-info">
+                <span class="adm-stat-num">{totalStars}</span>
+                <span class="adm-stat-label">{lang === 'zh' ? '总星标' : 'Total Stars'}</span>
+              </div>
+            </div>
+            <div class="adm-stat-card">
+              <div class="adm-stat-icon" style="background:rgba(14,165,233,0.12);color:#0EA5E9"><i class="fa-solid fa-bullhorn"></i></div>
+              <div class="adm-stat-info">
+                <span class="adm-stat-num">{anns.filter(a => a.enabled).length}/{anns.length}</span>
+                <span class="adm-stat-label">{lang === 'zh' ? '活跃公告' : 'Active Announcements'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick actions */}
+          <div class="adm-card" style="margin-top:16px">
+            <h3 class="adm-card-title"><i class="fa-solid fa-bolt"></i> {lang === 'zh' ? '快捷操作' : 'Quick Actions'}</h3>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+              <button class="adm-btn adm-btn-primary" onclick="document.querySelector('[data-tab=websites]').click()"><i class="fa-solid fa-plus"></i> {lang === 'zh' ? '添加网站' : 'Add Website'}</button>
+              <button class="adm-btn adm-btn-primary" onclick="document.querySelector('[data-tab=repos]').click()"><i class="fa-solid fa-plus"></i> {lang === 'zh' ? '添加仓库' : 'Add Repo'}</button>
+              <button class="adm-btn adm-btn-primary" onclick="document.querySelector('[data-tab=files]').click()"><i class="fa-solid fa-cloud-arrow-up"></i> {lang === 'zh' ? '上传文件' : 'Upload File'}</button>
+              <button class="adm-btn" onclick="document.querySelector('[data-tab=announcements]').click()"><i class="fa-solid fa-bullhorn"></i> {lang === 'zh' ? '发布公告' : 'Post Announcement'}</button>
+              <a href="/" class="adm-btn" target="_blank"><i class="fa-solid fa-eye"></i> {lang === 'zh' ? '查看网站' : 'View Site'}</a>
+            </div>
+          </div>
+
+          {/* Recent files */}
+          {files.length > 0 && (
+            <div class="adm-card" style="margin-top:16px">
+              <h3 class="adm-card-title"><i class="fa-solid fa-clock-rotate-left"></i> {lang === 'zh' ? '最近文件' : 'Recent Files'}</h3>
+              <div class="adm-items" style="margin-top:8px">
+                {files.slice(-5).reverse().map((f: any) => (
+                  <div class="adm-item" key={f.key} style="padding:8px 0">
+                    <div class="adm-item-icon"><i class={f.isExternal ? 'fa-solid fa-link' : 'fa-solid fa-file'}></i></div>
+                    <div class="adm-item-body">
+                      <strong style="font-size:0.85rem">{f.displayName}</strong>
+                      <span class="adm-item-sub">{formatSize(f.size)} · {new Date(f.uploadedAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
         {/* ===== Profile ===== */}
-        <section id="panel-profile" class="adm-panel active">
+        <section id="panel-profile" class="adm-panel">
           <div class="adm-panel-header">
             <h2><i class="fa-solid fa-user"></i> {t('admin', 'personalInfo', lang)}</h2>
             <button class="adm-btn adm-btn-primary" id="saveProfile"><i class="fa-solid fa-save"></i> {t('admin', 'save', lang)}</button>
@@ -110,10 +202,16 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
           </div>
           <div id="websitesList" class="adm-items">
             {websites.map((w: any) => (
-              <div class="adm-item" data-id={w.id} key={w.id}>
+              <div class={`adm-item${w.pinned ? ' adm-item-pinned' : ''}`} data-id={w.id} key={w.id}>
                 <div class="adm-item-icon" style={`color: ${w.color || '#6366F1'}`}><i class={w.icon || 'fa-solid fa-globe'}></i></div>
-                <div class="adm-item-body"><strong>{w.title}</strong><span class="adm-item-sub">{w.description}</span></div>
+                <div class="adm-item-body">
+                  <strong>{w.title} {w.pinned && <span class="adm-pin-indicator"><i class="fa-solid fa-thumbtack"></i></span>}</strong>
+                  <span class="adm-item-sub">{w.description}</span>
+                </div>
                 <div class="adm-item-actions">
+                  <button class="adm-btn-icon pin-website" title={lang === 'zh' ? '置顶/取消' : 'Pin/Unpin'} style={w.pinned ? 'color:var(--accent)' : ''}><i class="fa-solid fa-thumbtack"></i></button>
+                  <button class="adm-btn-icon move-up-website" title={lang === 'zh' ? '上移' : 'Move Up'}><i class="fa-solid fa-arrow-up"></i></button>
+                  <button class="adm-btn-icon move-down-website" title={lang === 'zh' ? '下移' : 'Move Down'}><i class="fa-solid fa-arrow-down"></i></button>
                   <button class="adm-btn-icon edit-website" title={t('admin', 'edit', lang)}><i class="fa-solid fa-pen"></i></button>
                   <button class="adm-btn-icon adm-btn-icon-danger delete-website" title={t('admin', 'delete', lang)}><i class="fa-solid fa-trash"></i></button>
                 </div>
@@ -146,9 +244,25 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
         <section id="panel-files" class="adm-panel">
           <div class="adm-panel-header">
             <h2><i class="fa-solid fa-cloud-arrow-up"></i> {t('admin', 'fileManager', lang)}</h2>
-            <button class="adm-btn adm-btn-primary" id="addLinkFile" style={st.storageMode === 'external' ? '' : 'display:none'}>
-              <i class="fa-solid fa-link"></i> {t('admin', 'addLink', lang)}
-            </button>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="adm-btn adm-btn-danger" id="batchDeleteFiles" style="display:none">
+                <i class="fa-solid fa-trash"></i> <span id="batchDeleteCount">0</span>
+              </button>
+              <button class="adm-btn adm-btn-primary" id="addLinkFile" style={st.storageMode === 'external' ? '' : 'display:none'}>
+                <i class="fa-solid fa-link"></i> {t('admin', 'addLink', lang)}
+              </button>
+            </div>
+          </div>
+
+          {/* File search */}
+          <div class="adm-card" style="padding:12px 16px;margin-bottom:12px">
+            <div style="display:flex;gap:10px;align-items:center">
+              <i class="fa-solid fa-search" style="color:var(--text-tertiary)"></i>
+              <input type="text" id="fileSearch" placeholder={lang === 'zh' ? '搜索文件名...' : 'Search files...'} style="flex:1;border:none;background:transparent;color:var(--text-primary);outline:none;font-size:0.9rem" />
+              <label style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:var(--text-secondary);cursor:pointer">
+                <input type="checkbox" id="selectAllFiles" /> {lang === 'zh' ? '全选' : 'All'}
+              </label>
+            </div>
           </div>
 
           <div class="adm-card adm-upload-zone" id="uploadZone" style={st.storageMode === 'kv' || st.storageMode === 'local' ? '' : 'display:none'}>
@@ -187,18 +301,23 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
 
           <div id="filesList" class="adm-items">
             {files.map((f: any) => (
-              <div class="adm-item" data-key={f.key} key={f.key}>
+              <div class="adm-item adm-file-item" data-key={f.key} data-name={(f.displayName || '').toLowerCase()} key={f.key}>
+                <label class="adm-file-checkbox"><input type="checkbox" class="file-select-cb" data-key={f.key} /></label>
                 <div class="adm-item-icon">
-                  <i class={f.isExternal ? 'fa-solid fa-link' : 'fa-solid fa-file'}></i>
+                  <i class={f.isExternal ? 'fa-solid fa-link' : getFileIcon(f.type)}></i>
                 </div>
                 <div class="adm-item-body">
                   <strong>{f.displayName}</strong>
                   <span class="adm-item-sub">
-                    {f.originalName} · {formatSize(f.size)}
+                    {f.originalName} · {formatSize(f.size)} · {new Date(f.uploadedAt).toLocaleDateString()}
                     {f.isExternal ? ` · ${t('admin', 'external', lang)}` : f.storageType === 'local' ? ` · ${t('admin', 'localStorageInfo', lang)}` : ' · KV'}
                   </span>
                 </div>
                 <div class="adm-item-actions">
+                  {f.type && f.type.startsWith('image/') && !f.isExternal && (
+                    <button class="adm-btn-icon preview-file" data-url={'/api/download/' + f.key} title={lang === 'zh' ? '预览' : 'Preview'}><i class="fa-solid fa-eye"></i></button>
+                  )}
+                  <button class="adm-btn-icon rename-file" data-key={f.key} data-name={f.displayName} title={lang === 'zh' ? '重命名' : 'Rename'}><i class="fa-solid fa-pen-to-square"></i></button>
                   <a href={f.isExternal && f.externalUrl ? f.externalUrl : '/api/download/' + f.key} class="adm-btn-icon" title={t('home', 'download', lang)} target="_blank"><i class="fa-solid fa-download"></i></a>
                   <button class="adm-btn-icon adm-btn-icon-danger delete-file" title={t('admin', 'delete', lang)}><i class="fa-solid fa-trash"></i></button>
                 </div>
@@ -380,6 +499,7 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
           settings: st,
           lang,
           announcements: anns,
+          shares: allShares,
           csrfToken: data.csrfToken || '',
         })};
       </script>`)}
@@ -391,5 +511,20 @@ function formatSize(bytes: number): string {
   if (!bytes || bytes === 0) return '0 B'
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+}
+
+function getFileIcon(mimeType: string): string {
+  if (!mimeType) return 'fa-solid fa-file'
+  if (mimeType.startsWith('image/')) return 'fa-solid fa-file-image'
+  if (mimeType.startsWith('video/')) return 'fa-solid fa-file-video'
+  if (mimeType.startsWith('audio/')) return 'fa-solid fa-file-audio'
+  if (mimeType.includes('pdf')) return 'fa-solid fa-file-pdf'
+  if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z') || mimeType.includes('tar') || mimeType.includes('gzip')) return 'fa-solid fa-file-zipper'
+  if (mimeType.includes('word') || mimeType.includes('document')) return 'fa-solid fa-file-word'
+  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'fa-solid fa-file-excel'
+  if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return 'fa-solid fa-file-powerpoint'
+  if (mimeType.startsWith('text/') || mimeType.includes('json') || mimeType.includes('xml')) return 'fa-solid fa-file-code'
+  return 'fa-solid fa-file'
 }

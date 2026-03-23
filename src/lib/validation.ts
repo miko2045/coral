@@ -28,6 +28,8 @@ export const WebsiteSchema = z.object({
   tags: z.string().max(200).default(''),
   color: z.string().max(20).default('#6366F1'),
   icon: z.string().max(50).default('fa-solid fa-globe'),
+  pinned: z.boolean().default(false),
+  order: z.number().min(0).default(0),
 })
 
 export const WebsitesArraySchema = z.array(WebsiteSchema).max(100)
@@ -89,6 +91,12 @@ export const AnnouncementSchema = z.object({
   type: z.enum(['info', 'warning', 'success']).default('info'),
   enabled: z.boolean().default(true),
   expiresAt: z.number().optional(),
+})
+
+// File rename
+export const FileRenameSchema = z.object({
+  key: z.string().min(1),
+  displayName: z.string().min(1).max(200),
 })
 
 // GitHub tokens
