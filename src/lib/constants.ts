@@ -25,10 +25,12 @@ export const DEFAULT_WEBSITES: Website[] = [
 ]
 
 export const DEFAULT_REPOS: Repo[] = [
-  { id: '1', name: 'hono-starter', description: '一套开箱即用的 Hono + Cloudflare Pages 项目模板', language: 'TypeScript', stars: 128, forks: 32, url: 'https://github.com' },
-  { id: '2', name: 'bento-css', description: '纯 CSS 实现的 Bento Grid 布局库，零依赖', language: 'CSS', stars: 256, forks: 45, url: 'https://github.com' },
-  { id: '3', name: 'mini-orm', description: '轻量级 D1 数据库 ORM，支持类型安全查询', language: 'TypeScript', stars: 89, forks: 12, url: 'https://github.com' },
-  { id: '4', name: 'pixel-weather', description: '像素风格的天气小组件，可嵌入任何网页', language: 'JavaScript', stars: 67, forks: 8, url: 'https://github.com' },
+  { id: '1', name: 'coral', description: '个人门户网站 — Hono + Cloudflare Pages 全栈项目', language: 'TypeScript', stars: 0, forks: 0, url: 'https://github.com/miko2045/coral' },
+  { id: '2', name: 'Micro-Lab', description: '⚡ 微交互实验室 — Apple 风格 60fps 微交互组件展示，6层纵深安全防护', language: 'TypeScript', stars: 0, forks: 0, url: 'https://github.com/miko2045/Micro-Lab' },
+  { id: '3', name: 'NIST', description: '后量子密码学迁移工具包 — 自动扫描脆弱加密算法，一键迁移到 NIST 后量子密码标准', language: 'JavaScript', stars: 1, forks: 0, url: 'https://github.com/miko2045/NIST' },
+  { id: '4', name: 'Student-verification', description: '学生身份验证系统', language: 'JavaScript', stars: 1, forks: 0, url: 'https://github.com/miko2045/Student-verification' },
+  { id: '5', name: 'void', description: 'Void 项目', language: 'JavaScript', stars: 1, forks: 0, url: 'https://github.com/miko2045/void' },
+  { id: '6', name: 'gitea', description: '轻量级 Git 代码托管服务', language: 'TypeScript', stars: 0, forks: 0, url: 'https://github.com/miko2045/gitea' },
 ]
 
 export const DEFAULT_SETTINGS: Settings = {
