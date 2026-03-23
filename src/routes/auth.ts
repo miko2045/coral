@@ -67,6 +67,10 @@ auth.post('/admin/login', async (c) => {
     return c.render(adminPage('login', { error: t('adminLogin', 'wrongPw', lang), lang }), { title: lang === 'zh' ? '后台登录' : 'Admin Login', lang, isAdmin: true })
   }
 
+  // Check if using default credentials — force password change
+  const isDefaultPassword = await verifyPassword('admin123', storedPw)
+  const isDefaultUsername = storedUsername === 'admin'
+
   const sessionId = await createSession(c.env.KV, ip, c.req.header('User-Agent'))
   // Use __Host- prefix for production (requires Secure + Path=/)
   const isSecure = c.req.url.startsWith('https://') || c.req.header('X-Forwarded-Proto') === 'https'
@@ -74,10 +78,13 @@ auth.post('/admin/login', async (c) => {
   const cookieFlags = isSecure 
     ? `${cookieName}=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=86400`
     : `portal_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`
+
+  // If default credentials, redirect to admin with force-change flag
+  const redirectUrl = (isDefaultPassword || isDefaultUsername) ? '/admin?forcePasswordChange=1' : '/admin'
   return new Response(null, {
     status: 302,
     headers: {
-      'Location': '/admin',
+      'Location': redirectUrl,
       'Set-Cookie': cookieFlags,
     },
   })

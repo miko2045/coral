@@ -13,6 +13,22 @@
   const csrfToken = D.csrfToken || '';
   const zh = lang === 'zh';
 
+  // === Security: Force password change if default credentials detected ===
+  if (new URLSearchParams(location.search).has('forcePasswordChange')) {
+    setTimeout(() => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
+      overlay.innerHTML = `<div style="background:var(--bg-card,#fff);border:2px solid #EF4444;border-radius:16px;padding:32px;max-width:420px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="font-size:2.5rem;margin-bottom:12px">🔐</div>
+        <h2 style="color:#EF4444;margin:0 0 8px;font-size:1.3rem">${zh ? '⚠️ 安全警告' : '⚠️ Security Warning'}</h2>
+        <p style="color:var(--text-secondary,#666);margin:0 0 20px;font-size:0.9rem">${zh ? '您正在使用默认用户名或密码，这是严重的安全隐患。请立即修改！' : 'You are using default credentials. This is a critical security risk. Please change them immediately!'}</p>
+        <button onclick="this.closest('div').parentElement.remove();document.querySelector('[data-tab=settings]').click();setTimeout(()=>document.getElementById('set-oldpw')?.focus(),300)" style="padding:10px 28px;background:#EF4444;color:white;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:1rem">${zh ? '立即修改密码' : 'Change Password Now'}</button>
+      </div>`;
+      document.body.appendChild(overlay);
+      history.replaceState(null, '', '/admin');
+    }, 500);
+  }
+
   // === i18n strings ===
   const i = {
     profileSaved: zh ? '个人信息已保存!' : 'Profile saved!',
