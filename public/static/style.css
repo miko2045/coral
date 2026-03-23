@@ -194,43 +194,38 @@ a { text-decoration: none; color: inherit; }
 
 /* === Header === */
 .header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 28px;
-  position: fixed;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 1060px;
-  z-index: 100;
-  background: transparent;
-  transition: background 0.4s ease;
-}
-
-.header::before {
-  content: '';
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: 62px;
+  z-index: 100;
   background: color-mix(in srgb, var(--bg) 92%, transparent);
-  z-index: -1;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid transparent;
   transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
 }
 
-.header.scrolled::before {
+.header.scrolled {
   background: color-mix(in srgb, var(--bg) 96%, transparent);
   border-bottom-color: var(--border);
   box-shadow: 0 2px 16px rgba(0,0,0,0.04);
 }
 
-[data-theme="dark"] .header.scrolled::before {
+[data-theme="dark"] .header.scrolled {
   box-shadow: 0 2px 16px rgba(0,0,0,0.25);
 }
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 14px 28px;
+}
+
+.header::before { display: none; }
 
 .header-left {
   display: flex;
@@ -1664,7 +1659,7 @@ a { text-decoration: none; color: inherit; }
 
 /* === Responsive === */
 @media (max-width: 768px) {
-  .header {
+  .header-inner {
     padding: 14px 16px;
   }
 

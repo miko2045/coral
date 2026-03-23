@@ -21,8 +21,9 @@ export function pageLayout({ lang, activePage, children }: LayoutProps) {
         <div class="grain"></div>
       </div>
 
-      <div class="container">
-        <header class="header" id="siteHeader">
+      {/* ===== FIXED HEADER — outside .container so it never moves ===== */}
+      <header class="header" id="siteHeader">
+        <div class="header-inner">
           <div class="header-left">
             <a href="/" class="logo-link">
               <span class="logo-dot"></span>
@@ -63,8 +64,10 @@ export function pageLayout({ lang, activePage, children }: LayoutProps) {
               <span class="hamburger-line"></span>
             </button>
           </div>
-        </header>
+        </div>
+      </header>
 
+      <div class="container">
         <div id="pageContent" class="page-transition" data-page={activePage}>
           {children}
         </div>
