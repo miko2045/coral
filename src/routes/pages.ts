@@ -28,9 +28,9 @@ pages.get('/', async (c) => {
     title: `${profile.name} — ${profile.tagline || 'Portal'}`,
     lang,
     description: lang === 'zh'
-      ? `${profile.name} 的全栈开发门户 — GitHub项目展示、软件库、开源项目精选、GitHub排行榜`
-      : `${profile.name}'s Developer Portal — GitHub projects, software library, open source picks`,
-    keywords: `${profile.name},GitHub,GitHub排行榜,全栈开发,软件库,文件库,好的项目,开源项目,developer,portfolio`,
+      ? `${profile.name} 的全栈开发门户 — GitHub热门项目排行榜、开源项目推荐、软件资源下载、优质项目精选`
+      : `${profile.name}'s Developer Portal — GitHub trending, open source picks, software downloads`,
+    keywords: `${profile.name},GitHub,GitHub排行榜,GitHub热门项目,全栈开发,全栈开发者,软件库,软件下载,文件库,开源项目,开源项目推荐,好的项目,优质项目,项目推荐,项目导航,开发者工具,编程资源,程序员导航`,
     canonical: '/',
   })
 })
@@ -52,9 +52,9 @@ pages.get('/projects', async (c) => {
     title: `${t('home', 'webProjects', lang)} — ${profile.name}`,
     lang,
     description: lang === 'zh'
-      ? `精选好的项目 — ${sorted.length} 个优质网站项目展示，全栈开发作品集`
-      : `Best Projects — ${sorted.length} curated web projects by a full-stack developer`,
-    keywords: `好的项目,项目展示,全栈开发,网站项目,web projects,portfolio,${profile.name}`,
+      ? `精选好的项目 — ${sorted.length} 个优质网站项目展示，全栈开发作品集，值得收藏的好项目推荐`
+      : `Best Projects — ${sorted.length} curated web projects, full-stack developer portfolio`,
+    keywords: `好的项目,优质项目,项目推荐,项目展示,全栈开发,全栈开发者,网站推荐,网站导航,开发者作品集,web projects,portfolio,${profile.name}`,
     canonical: '/projects',
   })
 })
@@ -70,9 +70,9 @@ pages.get('/github', async (c) => {
     title: `${t('home', 'githubProjects', lang)} — ${profile.name}`,
     lang,
     description: lang === 'zh'
-      ? `GitHub开源项目展示 — ${repos.length} 个优质仓库，发现好的开源项目`
-      : `GitHub Open Source — ${repos.length} quality repositories, discover great projects`,
-    keywords: `GitHub,开源项目,好的项目,GitHub仓库,全栈开发,open source,repositories,${profile.name}`,
+      ? `GitHub开源项目推荐 — ${repos.length} 个优质仓库，发现GitHub上好的开源项目，值得Star的仓库推荐`
+      : `GitHub Open Source Picks — ${repos.length} quality repos, discover the best open source projects`,
+    keywords: `GitHub,GitHub项目,GitHub仓库,GitHub推荐,开源项目,开源项目推荐,好的项目,好的开源项目,全栈开发,代码分享,open source,repositories,${profile.name}`,
     canonical: '/github',
   })
 })
@@ -95,9 +95,9 @@ pages.get('/downloads', async (c) => {
     title: `${t('home', 'downloadsTitle', lang)} — ${profile.name}`,
     lang,
     description: lang === 'zh'
-      ? `软件库文件下载中心 — ${sorted.length} 个免费资源，工具软件、开发资源下载`
-      : `Software Library — ${sorted.length} free resources, tools and development files`,
-    keywords: `软件库,文件库,免费下载,工具软件,开发资源,software download,${profile.name}`,
+      ? `软件库文件下载中心 — ${sorted.length} 个免费资源，开发工具、实用软件、编程资源免费下载`
+      : `Software Library — ${sorted.length} free resources, dev tools and programming files download`,
+    keywords: `软件库,软件下载,文件库,文件下载,免费下载,免费软件,工具下载,开发工具,开发资源,编程资源,编程工具,实用软件,software download,free tools,${profile.name}`,
     canonical: '/downloads',
   })
 })

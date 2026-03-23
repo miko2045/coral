@@ -4,8 +4,8 @@ export const renderer = jsxRenderer(({ children, title, lang, isAdmin, descripti
   const htmlLang = lang === 'en' ? 'en' : 'zh-CN'
   const siteUrl = 'https://likeok.online'
   const pageTitle = title || 'My Portal'
-  const pageDesc = description || '全栈开发者门户 — GitHub项目展示、GitHub排行榜、软件库、文件下载、开源项目精选'
-  const pageKeywords = keywords || 'GitHub,GitHub排行榜,全栈开发,软件库,文件库,开源项目,好的项目,项目展示,developer,portfolio'
+  const pageDesc = description || '全栈开发者门户 — GitHub热门项目排行榜、开源项目推荐、软件资源下载、优质项目精选导航'
+  const pageKeywords = keywords || 'GitHub,GitHub排行榜,GitHub热门项目,GitHub trending,全栈开发,全栈开发者,软件库,软件下载,文件库,文件下载,开源项目,开源项目推荐,好的项目,优质项目,项目推荐,项目导航,开发者工具,编程资源,程序员导航,代码分享,developer,portfolio,open source'
   const pageCanonical = canonical ? `${siteUrl}${canonical}` : siteUrl
   const pageOgImage = ogImage || `${siteUrl}/static/avatar.svg`
   return (
@@ -53,7 +53,7 @@ export const renderer = jsxRenderer(({ children, title, lang, isAdmin, descripti
           'url': siteUrl,
           'sameAs': ['https://github.com/miko2045'],
           'jobTitle': '全栈开发者',
-          'knowsAbout': ['GitHub', '全栈开发', '开源项目', '软件开发'],
+          'knowsAbout': ['GitHub', 'GitHub排行榜', '全栈开发', '开源项目', '软件开发', '项目推荐', '编程', '前端开发', '后端开发'],
           'description': pageDesc,
         })}} />}
       </head>

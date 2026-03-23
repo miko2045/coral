@@ -295,9 +295,9 @@ trending.get('/trending', async (c) => {
     title,
     lang,
     description: lang === 'zh'
-      ? 'GitHub排行榜 — 实时更新最热门的开源项目，发现GitHub上好的项目，全球开发者精选'
-      : 'GitHub Trending — Real-time ranking of popular open source projects, discover the best repos',
-    keywords: 'GitHub排行榜,GitHub trending,热门开源项目,好的项目,GitHub热门,全栈开发,open source ranking',
+      ? 'GitHub排行榜 — 今日GitHub热门项目实时排名，发现最受欢迎的开源项目，程序员必看的GitHub趋势榜'
+      : 'GitHub Trending — Today\'s hottest repos, real-time open source rankings, must-see developer trends',
+    keywords: 'GitHub排行榜,GitHub trending,GitHub热门项目,GitHub今日热门,GitHub趋势,GitHub排名,热门开源项目,开源项目排行,好的项目,优质项目,项目推荐,程序员导航,开发者工具,全栈开发,GitHub star排行,代码排行榜,open source ranking,trending repos',
     canonical: '/trending',
   })
 })
