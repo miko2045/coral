@@ -570,19 +570,36 @@
     return '#EF4444';
   }
 
-  function rateLimitBar(label, remaining, limit, percent, resetAt) {
+  function formatResetTime(resetAt) {
+    if (!resetAt) return '--';
+    const reset = new Date(resetAt);
+    const now = new Date();
+    const diffMs = reset.getTime() - now.getTime();
+    if (diffMs <= 0) return lang === 'zh' ? '已重置' : 'Reset';
+    const mins = Math.ceil(diffMs / 60000);
+    if (mins < 60) return `${mins} ${lang === 'zh' ? '分钟后' : 'min'}`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${h}h ${m}m`;
+  }
+
+  function rateLimitBar(label, used, remaining, limit, percent, resetAt) {
     const color = rateLimitColor(percent);
-    const resetTime = resetAt ? new Date(resetAt).toLocaleTimeString() : '--';
+    const usedPercent = limit > 0 ? Math.round((used / limit) * 100) : 0;
+    const resetText = formatResetTime(resetAt);
     return `
       <div class="adm-rl-bar-wrap">
         <div class="adm-rl-bar-header">
           <span class="adm-rl-bar-label">${label}</span>
-          <span class="adm-rl-bar-nums" style="color:${color}">${remaining}/${limit} <small>(${percent}%)</small></span>
+          <span class="adm-rl-bar-nums" style="color:${color}">${remaining} <small>/ ${limit}</small></span>
         </div>
         <div class="adm-rl-bar-track">
           <div class="adm-rl-bar-fill" style="width:${percent}%;background:${color}"></div>
         </div>
-        <div class="adm-rl-bar-footer">${lang === 'zh' ? '重置' : 'Reset'}: ${resetTime}</div>
+        <div class="adm-rl-bar-footer">
+          <span>${lang === 'zh' ? '已用' : 'Used'}: ${used} (${usedPercent}%)</span>
+          <span>${lang === 'zh' ? '重置' : 'Reset'}: ${resetText}</span>
+        </div>
       </div>`;
   }
 
@@ -622,12 +639,18 @@
 
       // === Aggregate rate limit bars ===
       if (rlData && rlData.total) {
+        // Find earliest reset time from all tokens
+        const coreResets = (rlData.tokens || []).filter(t => t.core && t.core.resetAt).map(t => t.core.resetAt);
+        const searchResets = (rlData.tokens || []).filter(t => t.search && t.search.resetAt).map(t => t.search.resetAt);
+        const earliestCoreReset = coreResets.length > 0 ? coreResets.sort()[0] : null;
+        const earliestSearchReset = searchResets.length > 0 ? searchResets.sort()[0] : null;
+
         html += `
         <div class="adm-rl-total">
           <h4 class="adm-rl-total-title"><i class="fa-solid fa-chart-pie"></i> ${lang === 'zh' ? '总配额概览' : 'Total Quota Overview'}</h4>
           <div class="adm-rl-total-grid">
-            ${rateLimitBar(lang === 'zh' ? 'Core API' : 'Core API', rlData.total.core.remaining, rlData.total.core.limit, rlData.total.core.percent, null)}
-            ${rateLimitBar(lang === 'zh' ? 'Search API (排行榜)' : 'Search API (Trending)', rlData.total.search.remaining, rlData.total.search.limit, rlData.total.search.percent, null)}
+            ${rateLimitBar(lang === 'zh' ? 'Core API' : 'Core API', rlData.total.core.used, rlData.total.core.remaining, rlData.total.core.limit, rlData.total.core.percent, earliestCoreReset)}
+            ${rateLimitBar(lang === 'zh' ? 'Search API (排行榜)' : 'Search API (Trending)', rlData.total.search.used, rlData.total.search.remaining, rlData.total.search.limit, rlData.total.search.percent, earliestSearchReset)}
           </div>
         </div>`;
       }
@@ -657,8 +680,8 @@
         if (rl && !rl.error && rl.core && rl.search) {
           html += `
             <div class="adm-token-rl-detail">
-              ${rateLimitBar('Core', rl.core.remaining, rl.core.limit, rl.core.percent, rl.core.resetAt)}
-              ${rateLimitBar('Search', rl.search.remaining, rl.search.limit, rl.search.percent, rl.search.resetAt)}
+              ${rateLimitBar('Core', rl.core.used, rl.core.remaining, rl.core.limit, rl.core.percent, rl.core.resetAt)}
+              ${rateLimitBar('Search', rl.search.used, rl.search.remaining, rl.search.limit, rl.search.percent, rl.search.resetAt)}
             </div>`;
         } else if (rl && rl.error) {
           html += `<div class="adm-token-rl-error"><i class="fa-solid fa-triangle-exclamation"></i> ${rl.error}</div>`;

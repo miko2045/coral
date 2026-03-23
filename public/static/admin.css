@@ -1138,7 +1138,9 @@
 .adm-rl-bar-footer {
   font-size: 0.65rem;
   color: var(--text-tertiary);
-  text-align: right;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 /* Per-token rate limit detail */
