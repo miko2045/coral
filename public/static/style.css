@@ -173,6 +173,9 @@ a { text-decoration: none; color: inherit; }
   max-width: 1060px;
   margin: 0 auto;
   padding: 0 28px;
+  box-sizing: border-box;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 /* === Header === */
@@ -1460,6 +1463,10 @@ a { text-decoration: none; color: inherit; }
 
 /* ----- HOME RESPONSIVE ----- */
 @media (max-width: 768px) {
+  .container {
+    padding: 0 16px;
+  }
+
   .hero {
     padding: 44px 24px 32px;
   }
@@ -1845,6 +1852,8 @@ a { text-decoration: none; color: inherit; }
 
 .page-content {
   padding-top: 24px;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 /* === Compact Page Header (left-aligned, small title for non-home pages) === */
@@ -3058,6 +3067,7 @@ a { text-decoration: none; color: inherit; }
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 
 .trd-filter-label {
@@ -3072,6 +3082,7 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  overflow: hidden;
 }
 
 .filter-tag {
@@ -3109,6 +3120,7 @@ a { text-decoration: none; color: inherit; }
   flex-direction: column;
   gap: 6px;
   padding-bottom: 24px;
+  max-width: 100%;
 }
 
 /* === Empty State === */
@@ -3146,6 +3158,8 @@ a { text-decoration: none; color: inherit; }
   border-radius: var(--radius-sm);
   text-decoration: none;
   color: inherit;
+  overflow: hidden;
+  max-width: 100%;
   transition: border-color 0.3s ease, box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1), transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   position: relative;
   animation: cardSlideIn 0.4s ease forwards;
@@ -3205,6 +3219,9 @@ a { text-decoration: none; color: inherit; }
 .trd-body {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .trd-header {
@@ -3213,6 +3230,8 @@ a { text-decoration: none; color: inherit; }
   gap: 8px;
   margin-bottom: 6px;
   flex-wrap: wrap;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .trd-avatar {
@@ -3229,6 +3248,7 @@ a { text-decoration: none; color: inherit; }
   gap: 3px;
   min-width: 0;
   flex-wrap: wrap;
+  overflow: hidden;
 }
 
 .trd-owner {
@@ -3248,9 +3268,10 @@ a { text-decoration: none; color: inherit; }
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--accent);
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .trd-rising-badge {
@@ -3281,6 +3302,8 @@ a { text-decoration: none; color: inherit; }
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 /* Meta stats */
@@ -3476,38 +3499,94 @@ a { text-decoration: none; color: inherit; }
   }
 
   .trd-card {
-    padding: 14px;
-    gap: 10px;
+    padding: 12px;
+    gap: 8px;
+    overflow: hidden;
   }
 
   .trd-card:hover { transform: none; }
 
   .trd-rank {
-    width: 26px;
+    width: 24px;
+    flex-shrink: 0;
   }
 
   .trd-rank-medal {
-    font-size: 1.1rem;
+    font-size: 1rem;
   }
 
   .trd-rank-num {
-    font-size: 0.76rem;
+    font-size: 0.72rem;
+  }
+
+  .trd-body {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .trd-header {
+    gap: 6px;
+  }
+
+  .trd-avatar {
+    width: 18px;
+    height: 18px;
   }
 
   .trd-name {
-    font-size: 0.88rem;
+    font-size: 0.84rem;
+    white-space: normal;
+    word-break: break-all;
+  }
+
+  .trd-owner {
+    font-size: 0.72rem;
+  }
+
+  .trd-sep {
+    font-size: 0.72rem;
+  }
+
+  .trd-rising-badge {
+    font-size: 0.62rem;
+    padding: 1px 6px;
   }
 
   .trd-desc {
-    font-size: 0.78rem;
+    font-size: 0.76rem;
+    -webkit-line-clamp: 2;
+    margin-bottom: 6px;
   }
 
   .trd-meta {
-    gap: 8px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .trd-meta-lang {
+    font-size: 0.68rem;
+  }
+
+  .trd-meta-item {
+    font-size: 0.66rem;
+  }
+
+  .trd-meta-item i {
+    font-size: 0.58rem;
   }
 
   .trd-meta-time {
     margin-left: 0;
+    display: none;
+  }
+
+  .trd-topics {
+    gap: 3px;
+  }
+
+  .trd-topic {
+    font-size: 0.6rem;
+    padding: 1px 6px;
   }
 
   .trd-ext {
@@ -3519,10 +3598,33 @@ a { text-decoration: none; color: inherit; }
     padding: 8px 14px;
   }
 
+  .trd-list {
+    gap: 4px;
+  }
+
   .trd-card-top.trd-card:nth-child(1),
   .trd-card-top.trd-card:nth-child(2),
   .trd-card-top.trd-card:nth-child(3) {
     border-left-width: 3px;
+  }
+
+  .filter-tag {
+    padding: 4px 10px;
+    font-size: 0.68rem;
+  }
+
+  .trd-controls {
+    padding: 8px 10px;
+  }
+
+  .trd-badge {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+  }
+
+  .trd-cache-time,
+  .trd-quota {
+    font-size: 0.65rem;
   }
 }
 
