@@ -576,7 +576,7 @@
       history.replaceState({ path: url.pathname + url.search }, '', url.toString());
 
       // Update refresh button href
-      const refreshBtn = document.querySelector('.trending-refresh-btn');
+      const refreshBtn = document.querySelector('.trd-refresh');
       if (refreshBtn) {
         const u = new URL(url.toString());
         u.searchParams.set('refresh', '1');

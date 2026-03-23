@@ -39,6 +39,14 @@ function timeAgo(dateStr: string, lang: Lang): string {
   return lang === 'zh' ? `${y} 年前` : `${y} year${y > 1 ? 's' : ''} ago`
 }
 
+/** Medal emoji for top 3 */
+function rankMedal(idx: number): string {
+  if (idx === 0) return '🥇'
+  if (idx === 1) return '🥈'
+  if (idx === 2) return '🥉'
+  return ''
+}
+
 export function trendingPage(
   hotRepos: any[],
   risingRepos: any[],
@@ -53,90 +61,109 @@ export function trendingPage(
     '', 'Python', 'JavaScript', 'TypeScript', 'Java', 'Go', 'Rust', 'C++', 'C', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'Shell'
   ]
 
-  const activeRepos = tab === 'rising' ? risingRepos : hotRepos
-
   // Helper: render a repo list
   function repoList(repos: any[], listTab: string) {
     return (
-      <div class={`trending-list`} id={`trendingList-${listTab}`}
+      <div class={`trd-list`} id={`trendingList-${listTab}`}
            style={listTab !== tab ? 'display:none' : ''}>
         {repos.length === 0 && (
-          <div class="trending-empty">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <p>{t('trending', 'noResults', lang)}</p>
+          <div class="trd-empty">
+            <div class="trd-empty-icon">
+              <i class="fa-solid fa-satellite-dish"></i>
+            </div>
+            <p class="trd-empty-title">{t('trending', 'noResults', lang)}</p>
+            <p class="trd-empty-sub">{lang === 'zh' ? '换个语言筛选试试？' : 'Try a different language filter?'}</p>
           </div>
         )}
-        {repos.map((repo: any, idx: number) => (
+        {repos.map((repo: any, idx: number) => {
+          const isTop3 = idx < 3
+          return (
           <a href={repo.html_url} target="_blank" rel="noopener"
-             class="trending-repo-card" key={repo.id}>
-            <div class="trending-rank">
-              <span class={`rank-num ${idx < 3 ? 'rank-top' : ''}`}>{idx + 1}</span>
+             class={`trd-card ${isTop3 ? 'trd-card-top' : ''}`} key={repo.id}
+             style={`animation-delay: ${Math.min(idx * 0.03, 0.3)}s`}>
+            {/* Rank */}
+            <div class={`trd-rank ${isTop3 ? `trd-rank-${idx + 1}` : ''}`}>
+              {isTop3
+                ? <span class="trd-rank-medal">{rankMedal(idx)}</span>
+                : <span class="trd-rank-num">{idx + 1}</span>
+              }
             </div>
-            <div class="trending-repo-body">
-              <div class="trending-repo-header">
-                <img src={repo.owner?.avatar_url || `https://github.com/${repo.owner?.login || 'ghost'}.png?size=40`} alt="" class="trending-owner-avatar" loading="lazy" />
-                <div class="trending-repo-names">
-                  <span class="trending-owner-name">{repo.owner?.login}</span>
-                  <span class="trending-name-sep">/</span>
-                  <h3 class="trending-repo-name">{repo.name}</h3>
+
+            {/* Main content */}
+            <div class="trd-body">
+              {/* Row 1: avatar + name + rising badge */}
+              <div class="trd-header">
+                <img src={repo.owner?.avatar_url || `https://github.com/${repo.owner?.login || 'ghost'}.png?size=40`}
+                     alt="" class="trd-avatar" loading="lazy" />
+                <div class="trd-names">
+                  <span class="trd-owner">{repo.owner?.login}</span>
+                  <span class="trd-sep">/</span>
+                  <h3 class="trd-name">{repo.name}</h3>
                 </div>
                 {listTab === 'rising' && repo._starsToday > 0 && (
-                  <span class="trending-rising-badge">
-                    <i class="fa-solid fa-arrow-up"></i> +{formatNumber(repo._starsToday)}
+                  <span class="trd-rising-badge">
+                    <i class="fa-solid fa-arrow-trend-up"></i> +{formatNumber(repo._starsToday)}{lang === 'zh' ? ' 今日' : ' today'}
                   </span>
                 )}
               </div>
-              <p class="trending-repo-desc">{repo.description || t('trending', 'noDesc', lang)}</p>
-              <div class="trending-repo-meta">
+
+              {/* Row 2: description */}
+              <p class="trd-desc">{repo.description || t('trending', 'noDesc', lang)}</p>
+
+              {/* Row 3: meta stats */}
+              <div class="trd-meta">
                 {repo.language && (
-                  <span class="trending-meta-item">
-                    <span class="lang-dot" style={`background: ${langColors[repo.language] || '#888'}`}></span>
+                  <span class="trd-meta-lang">
+                    <span class="trd-lang-dot" style={`background: ${langColors[repo.language] || '#888'}`}></span>
                     {repo.language}
                   </span>
                 )}
-                <span class="trending-meta-item">
+                <span class="trd-meta-item trd-meta-stars">
                   <i class="fa-solid fa-star"></i> {formatNumber(repo.stargazers_count)}
                 </span>
-                <span class="trending-meta-item">
+                <span class="trd-meta-item">
                   <i class="fa-solid fa-code-fork"></i> {formatNumber(repo.forks_count)}
                 </span>
-                <span class="trending-meta-item">
-                  <i class="fa-solid fa-eye"></i> {formatNumber(repo.watchers_count)}
-                </span>
                 {repo.open_issues_count > 0 && (
-                  <span class="trending-meta-item">
+                  <span class="trd-meta-item">
                     <i class="fa-solid fa-circle-dot"></i> {formatNumber(repo.open_issues_count)}
                   </span>
                 )}
                 {repo.created_at && (() => {
-                  const created = new Date(repo.created_at).getTime()
-                  const days = Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24))
+                  const days = Math.floor((Date.now() - new Date(repo.created_at).getTime()) / (1000 * 60 * 60 * 24))
                   return days <= 365
                 })() && (
-                <span class="trending-meta-item trending-meta-time">
-                  <i class="fa-solid fa-clock"></i> {timeAgo(repo.created_at, lang)}
-                </span>
+                  <span class="trd-meta-item trd-meta-time">
+                    <i class="fa-regular fa-clock"></i> {timeAgo(repo.created_at, lang)}
+                  </span>
                 )}
               </div>
+
+              {/* Row 4: topics */}
               {repo.topics && repo.topics.length > 0 && (
-                <div class="trending-topics">
-                  {repo.topics.slice(0, 6).map((topic: string) => (
-                    <span class="trending-topic" key={topic}>{topic}</span>
+                <div class="trd-topics">
+                  {repo.topics.slice(0, 5).map((topic: string) => (
+                    <span class="trd-topic" key={topic}>{topic}</span>
                   ))}
-                  {repo.topics.length > 6 && (
-                    <span class="trending-topic trending-topic-more">+{repo.topics.length - 6}</span>
+                  {repo.topics.length > 5 && (
+                    <span class="trd-topic trd-topic-more">+{repo.topics.length - 5}</span>
                   )}
                 </div>
               )}
             </div>
-            <div class="trending-repo-arrow">
+
+            {/* External link icon */}
+            <div class="trd-ext">
               <i class="fa-solid fa-arrow-up-right-from-square"></i>
             </div>
           </a>
-        ))}
+        )})}
       </div>
     )
   }
+
+  const statusOk = apiStatus === 'api_ok' || apiStatus === 'ok' || apiStatus === 'cached' || apiStatus === 'scrape_ok'
+  const statusWarn = apiStatus === 'fallback' || apiStatus === 'scrape_fallback'
 
   const content = (
     <main class="page-content">
@@ -152,34 +179,40 @@ export function trendingPage(
         <span class="page-header-count">{t('trending', 'subtitle', lang)}</span>
       </div>
 
-      <div class="trending-status-bar-standalone">
-        {cacheAge && (
-          <span class="trending-cache-hint">
-            <i class="fa-solid fa-clock"></i> {t('trending', 'dataFrom', lang)} {new Date(cacheAge).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')}
+      {/* ── Control Bar: status + refresh ── */}
+      <div class="trd-controls">
+        <div class="trd-controls-left">
+          <span class={`trd-badge ${statusOk ? 'trd-badge-ok' : statusWarn ? 'trd-badge-warn' : 'trd-badge-err'}`}>
+            <i class={`fa-solid ${statusOk ? 'fa-circle-check' : statusWarn ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}`}></i>
+            {statusOk ? (apiStatus === 'cached' || apiStatus === 'scrape_ok' ? t('trending', 'cached', lang) : 'API') : statusWarn ? t('trending', 'noToken', lang) : t('trending', 'limited', lang)}
           </span>
-        )}
-        <span class={`trending-api-badge ${apiStatus === 'api_ok' || apiStatus === 'ok' || apiStatus === 'cached' || apiStatus === 'scrape_ok' ? 'api-ok' : apiStatus === 'fallback' || apiStatus === 'scrape_fallback' ? 'api-warn' : 'api-err'}`}>
-          <i class={`fa-solid ${apiStatus === 'api_ok' || apiStatus === 'ok' || apiStatus === 'cached' || apiStatus === 'scrape_ok' ? 'fa-circle-check' : apiStatus === 'fallback' || apiStatus === 'scrape_fallback' ? 'fa-triangle-exclamation' : 'fa-circle-xmark'}`}></i>
-          {apiStatus === 'api_ok' || apiStatus === 'ok' ? 'Token API' : apiStatus === 'cached' ? t('trending', 'cached', lang) : apiStatus === 'scrape_ok' ? t('trending', 'cached', lang) : apiStatus === 'fallback' || apiStatus === 'scrape_fallback' ? t('trending', 'noToken', lang) : t('trending', 'limited', lang)}
-        </span>
-        <span class="trending-quota-hint">
-          <i class="fa-solid fa-gauge-high"></i> {t('trending', 'refreshQuota', lang)}: {rateLimitInfo.remaining}/30
-        </span>
+          {cacheAge && (
+            <span class="trd-cache-time">
+              <i class="fa-regular fa-clock"></i>
+              {new Date(cacheAge).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          <span class="trd-quota">
+            <i class="fa-solid fa-gauge"></i> {rateLimitInfo.remaining}/30
+          </span>
+        </div>
         <a href={`/trending?tab=${tab}${selectedLang ? '&lang_filter=' + selectedLang : ''}&refresh=1`}
-           class={`trending-refresh-btn ${!rateLimitInfo.allowed ? 'disabled' : ''}`}
+           class={`trd-refresh ${!rateLimitInfo.allowed ? 'disabled' : ''}`}
            title={!rateLimitInfo.allowed ? t('trending', 'limitReached', lang) : t('trending', 'forceRefresh', lang)}>
-          <i class="fa-solid fa-rotate"></i> {t('trending', 'refresh', lang)}
+          <i class="fa-solid fa-arrows-rotate"></i>
+          <span>{t('trending', 'refresh', lang)}</span>
         </a>
       </div>
+
       {!rateLimitInfo.allowed && (
-        <div class="trending-rate-warn">
+        <div class="trd-rate-warn">
           <i class="fa-solid fa-shield-halved"></i>
           {t('trending', 'rateLimitMsg', lang)}
         </div>
       )}
 
-      {/* Tab Switcher — client-side switching */}
-      <div class="trending-tabs" id="trendingTabs" data-current-tab={tab}>
+      {/* ── Tab Switcher ── */}
+      <div class="trd-tabs" id="trendingTabs" data-current-tab={tab}>
         <button type="button" class={`trending-tab ${tab === 'hot' ? 'active' : ''}`} data-tab="hot">
           <i class="fa-solid fa-fire"></i>
           <span>{t('trending', 'hotTab', lang)}</span>
@@ -192,10 +225,10 @@ export function trendingPage(
         </button>
       </div>
 
-      {/* Language Filter — client-side switching */}
-      <div class="trending-filters" id="trendingFilters" data-current-lang={selectedLang}>
-        <span class="filter-label"><i class="fa-solid fa-code"></i> {t('trending', 'language', lang)}</span>
-        <div class="filter-tags">
+      {/* ── Language Filter ── */}
+      <div class="trd-filters" id="trendingFilters" data-current-lang={selectedLang}>
+        <span class="trd-filter-label"><i class="fa-solid fa-code"></i></span>
+        <div class="trd-filter-tags">
           {popularLangs.map(pl => (
             <button type="button"
                class={`filter-tag ${selectedLang === pl ? 'active' : ''}`}
@@ -207,14 +240,14 @@ export function trendingPage(
         </div>
       </div>
 
-      {/* Both tab lists rendered, only active one visible */}
+      {/* ── Both tab lists rendered, only active one visible ── */}
       <div id="trendingContent">
         {repoList(hotRepos, 'hot')}
         {repoList(risingRepos, 'rising')}
       </div>
 
-      {/* Trending Footer */}
-      <div class="trending-footer">
+      {/* ── Footer ── */}
+      <div class="trd-footer">
         <p>{t('trending', 'poweredBy', lang)}</p>
       </div>
     </main>
