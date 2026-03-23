@@ -291,7 +291,15 @@ trending.get('/trending', async (c) => {
   }
 
   const title = lang === 'zh' ? 'GitHub 排行榜 — Portal' : 'GitHub Trending — Portal'
-  return c.render(trendingPage(hotRepos, risingRepos, lang, tab, langFilter, cacheAge, apiStatus, rateLimitInfo), { title, lang })
+  return c.render(trendingPage(hotRepos, risingRepos, lang, tab, langFilter, cacheAge, apiStatus, rateLimitInfo), {
+    title,
+    lang,
+    description: lang === 'zh'
+      ? 'GitHub 全站热门仓库排行榜 — 实时更新最受欢迎的开源项目'
+      : 'GitHub Trending Repositories — Real-time ranking of popular open source projects',
+    keywords: 'GitHub,trending,排行榜,热门仓库,开源项目,open source',
+    canonical: '/trending',
+  })
 })
 
 trending.get('/api/trending', async (c) => {
