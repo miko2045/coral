@@ -61,7 +61,13 @@ pages.get('/downloads', async (c) => {
     getData(c.env.KV, 'profile', DEFAULT_PROFILE),
     checkAuth(c),
   ])
-  return c.render(downloadsPage(files, lang, isAdmin), { title: `${t('home', 'downloadsTitle', lang)} — ${profile.name}`, lang })
+  // Sort: pinned first, then by order
+  const sorted = [...files].sort((a: any, b: any) => {
+    if (a.pinned && !b.pinned) return -1
+    if (!a.pinned && b.pinned) return 1
+    return (a.order || 0) - (b.order || 0)
+  })
+  return c.render(downloadsPage(sorted, lang, isAdmin), { title: `${t('home', 'downloadsTitle', lang)} — ${profile.name}`, lang })
 })
 
 // Public data API (sanitized — no sensitive file keys exposed)

@@ -1,4 +1,4 @@
-/** admin.tsx — Admin panel (with i18n, safe JSON injection, announcements, dashboard stats) */
+/** admin.tsx — Admin panel (major UI overhaul with full pin support) */
 import { raw } from 'hono/html'
 import type { Lang } from './i18n'
 import { t } from './i18n'
@@ -44,7 +44,7 @@ function loginView({ error }: { error?: string; lang?: Lang }, lang: Lang) {
 
 function dashboardView({ profile, websites, repos, files, settings, lang: dataLang, announcements, shares, csrfToken }: any, lang: Lang) {
   const st = settings || { storageMode: 'kv', maxFileSize: 25 }
-  const data = { csrfToken } // preserve for template access
+  const data = { csrfToken }
   const otherLang = lang === 'zh' ? 'en' : 'zh'
   const langLabel = lang === 'zh' ? 'EN' : '中'
   const anns: Announcement[] = announcements || []
@@ -52,6 +52,20 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
   const totalFileSize = files.reduce((a: number, f: any) => a + (f.size || 0), 0)
   const totalDownloads = allShares.reduce((a: number, s: any) => a + (s.downloads || 0), 0)
   const totalStars = repos.reduce((a: number, r: any) => a + (r.stars || 0), 0)
+  const pinnedWebsites = websites.filter((w: any) => w.pinned)
+  const pinnedFiles = files.filter((f: any) => f.pinned)
+
+  // Sort websites and files: pinned first
+  const sortedWebsites = [...websites].sort((a: any, b: any) => {
+    if (a.pinned && !b.pinned) return -1
+    if (!a.pinned && b.pinned) return 1
+    return (a.order || 0) - (b.order || 0)
+  })
+  const sortedFiles = [...files].sort((a: any, b: any) => {
+    if (a.pinned && !b.pinned) return -1
+    if (!a.pinned && b.pinned) return 1
+    return (a.order || 0) - (b.order || 0)
+  })
 
   return (
     <div class="adm">
@@ -64,9 +78,15 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
         <nav class="adm-nav">
           <a href="#panel-overview" class="adm-nav-item active" data-tab="overview"><i class="fa-solid fa-chart-line"></i> {lang === 'zh' ? '仪表盘' : 'Dashboard'}</a>
           <a href="#panel-profile" class="adm-nav-item" data-tab="profile"><i class="fa-solid fa-user"></i> {t('admin', 'profile', lang)}</a>
-          <a href="#panel-websites" class="adm-nav-item" data-tab="websites"><i class="fa-solid fa-globe"></i> {t('admin', 'websitesTab', lang)}</a>
+          <a href="#panel-websites" class="adm-nav-item" data-tab="websites">
+            <i class="fa-solid fa-globe"></i> {t('admin', 'websitesTab', lang)}
+            {pinnedWebsites.length > 0 && <span class="adm-nav-badge">{pinnedWebsites.length}<i class="fa-solid fa-thumbtack" style="font-size:0.55rem;margin-left:2px"></i></span>}
+          </a>
           <a href="#panel-repos" class="adm-nav-item" data-tab="repos"><i class="fa-brands fa-github"></i> {t('admin', 'githubTab', lang)}</a>
-          <a href="#panel-files" class="adm-nav-item" data-tab="files"><i class="fa-solid fa-cloud-arrow-up"></i> {t('admin', 'filesTab', lang)}</a>
+          <a href="#panel-files" class="adm-nav-item" data-tab="files">
+            <i class="fa-solid fa-cloud-arrow-up"></i> {t('admin', 'filesTab', lang)}
+            {pinnedFiles.length > 0 && <span class="adm-nav-badge">{pinnedFiles.length}<i class="fa-solid fa-thumbtack" style="font-size:0.55rem;margin-left:2px"></i></span>}
+          </a>
           <a href="#panel-shares" class="adm-nav-item" data-tab="shares"><i class="fa-solid fa-share-nodes"></i> {t('admin', 'sharesTab', lang)}</a>
           <a href="#panel-announcements" class="adm-nav-item" data-tab="announcements"><i class="fa-solid fa-bullhorn"></i> {t('admin', 'announcementsTab', lang)}</a>
           <a href="#panel-tokens" class="adm-nav-item" data-tab="tokens"><i class="fa-solid fa-key"></i> {t('admin', 'githubTokens', lang)}</a>
@@ -99,7 +119,7 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
               <div class="adm-stat-icon" style="background:rgba(99,102,241,0.12);color:var(--accent)"><i class="fa-solid fa-globe"></i></div>
               <div class="adm-stat-info">
                 <span class="adm-stat-num">{websites.length}</span>
-                <span class="adm-stat-label">{lang === 'zh' ? '网站项目' : 'Websites'}</span>
+                <span class="adm-stat-label">{lang === 'zh' ? '网站项目' : 'Websites'}{pinnedWebsites.length > 0 ? ` (${pinnedWebsites.length} ${lang === 'zh' ? '置顶' : 'pinned'})` : ''}</span>
               </div>
             </div>
             <div class="adm-stat-card">
@@ -113,14 +133,14 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
               <div class="adm-stat-icon" style="background:rgba(245,158,11,0.12);color:#F59E0B"><i class="fa-solid fa-file"></i></div>
               <div class="adm-stat-info">
                 <span class="adm-stat-num">{files.length}</span>
-                <span class="adm-stat-label">{lang === 'zh' ? '文件' : 'Files'} ({formatSize(totalFileSize)})</span>
+                <span class="adm-stat-label">{lang === 'zh' ? '文件' : 'Files'} ({formatSize(totalFileSize)}){pinnedFiles.length > 0 ? ` · ${pinnedFiles.length} ${lang === 'zh' ? '置顶' : 'pinned'}` : ''}</span>
               </div>
             </div>
             <div class="adm-stat-card">
               <div class="adm-stat-icon" style="background:rgba(236,72,153,0.12);color:#EC4899"><i class="fa-solid fa-share-nodes"></i></div>
               <div class="adm-stat-info">
                 <span class="adm-stat-num">{allShares.length}</span>
-                <span class="adm-stat-label">{lang === 'zh' ? '分享链接' : 'Shares'} ({totalDownloads} {lang === 'zh' ? '次下载' : 'downloads'})</span>
+                <span class="adm-stat-label">{lang === 'zh' ? '分享链接' : 'Shares'} ({totalDownloads} {lang === 'zh' ? '次下载' : 'dl'})</span>
               </div>
             </div>
             <div class="adm-stat-card">
@@ -150,6 +170,29 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
               <a href="/" class="adm-btn" target="_blank"><i class="fa-solid fa-eye"></i> {lang === 'zh' ? '查看网站' : 'View Site'}</a>
             </div>
           </div>
+
+          {/* Pinned items overview */}
+          {(pinnedWebsites.length > 0 || pinnedFiles.length > 0) && (
+            <div class="adm-card adm-pinned-overview" style="margin-top:16px">
+              <h3 class="adm-card-title"><i class="fa-solid fa-thumbtack"></i> {lang === 'zh' ? '已置顶项目' : 'Pinned Items'}</h3>
+              <div class="adm-pinned-list">
+                {pinnedWebsites.map((w: any) => (
+                  <div class="adm-pinned-chip adm-pinned-chip-website" key={w.id}>
+                    <i class={w.icon || 'fa-solid fa-globe'} style={`color:${w.color || '#6366F1'}`}></i>
+                    <span>{w.title}</span>
+                    <span class="adm-pinned-chip-type">{lang === 'zh' ? '网站' : 'Website'}</span>
+                  </div>
+                ))}
+                {pinnedFiles.map((f: any) => (
+                  <div class="adm-pinned-chip adm-pinned-chip-file" key={f.key}>
+                    <i class={getFileIcon(f.type)}></i>
+                    <span>{f.displayName}</span>
+                    <span class="adm-pinned-chip-type">{lang === 'zh' ? '文件' : 'File'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Recent files */}
           {files.length > 0 && (
@@ -194,22 +237,33 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
           </div>
         </section>
 
-        {/* ===== Websites ===== */}
+        {/* ===== Websites (with pin/reorder) ===== */}
         <section id="panel-websites" class="adm-panel">
           <div class="adm-panel-header">
             <h2><i class="fa-solid fa-globe"></i> {t('admin', 'webProjectsTitle', lang)}</h2>
-            <button class="adm-btn adm-btn-primary" id="addWebsite"><i class="fa-solid fa-plus"></i> {t('admin', 'add', lang)}</button>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="adm-header-badge" id="websitePinnedCount" style={pinnedWebsites.length > 0 ? '' : 'display:none'}>
+                <i class="fa-solid fa-thumbtack"></i> {pinnedWebsites.length} {lang === 'zh' ? '置顶' : 'pinned'}
+              </span>
+              <button class="adm-btn adm-btn-primary" id="addWebsite"><i class="fa-solid fa-plus"></i> {t('admin', 'add', lang)}</button>
+            </div>
           </div>
           <div id="websitesList" class="adm-items">
-            {websites.map((w: any) => (
-              <div class={`adm-item${w.pinned ? ' adm-item-pinned' : ''}`} data-id={w.id} key={w.id}>
+            {sortedWebsites.map((w: any) => (
+              <div class={`adm-item adm-item-sortable${w.pinned ? ' adm-item-pinned' : ''}`} data-id={w.id} key={w.id}>
+                <div class="adm-item-drag" title={lang === 'zh' ? '拖拽排序' : 'Drag to reorder'}>
+                  <i class="fa-solid fa-grip-vertical"></i>
+                </div>
                 <div class="adm-item-icon" style={`color: ${w.color || '#6366F1'}`}><i class={w.icon || 'fa-solid fa-globe'}></i></div>
                 <div class="adm-item-body">
-                  <strong>{w.title} {w.pinned && <span class="adm-pin-indicator"><i class="fa-solid fa-thumbtack"></i></span>}</strong>
+                  <strong>
+                    {w.pinned && <span class="adm-pin-badge"><i class="fa-solid fa-thumbtack"></i> {lang === 'zh' ? '置顶' : 'PIN'}</span>}
+                    {w.title}
+                  </strong>
                   <span class="adm-item-sub">{w.description}</span>
                 </div>
                 <div class="adm-item-actions">
-                  <button class="adm-btn-icon pin-website" title={lang === 'zh' ? '置顶/取消' : 'Pin/Unpin'} style={w.pinned ? 'color:var(--accent)' : ''}><i class="fa-solid fa-thumbtack"></i></button>
+                  <button class={`adm-btn-icon pin-website${w.pinned ? ' adm-btn-icon-active' : ''}`} title={lang === 'zh' ? '置顶/取消' : 'Pin/Unpin'}><i class="fa-solid fa-thumbtack"></i></button>
                   <button class="adm-btn-icon move-up-website" title={lang === 'zh' ? '上移' : 'Move Up'}><i class="fa-solid fa-arrow-up"></i></button>
                   <button class="adm-btn-icon move-down-website" title={lang === 'zh' ? '下移' : 'Move Down'}><i class="fa-solid fa-arrow-down"></i></button>
                   <button class="adm-btn-icon edit-website" title={t('admin', 'edit', lang)}><i class="fa-solid fa-pen"></i></button>
@@ -240,11 +294,14 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
           </div>
         </section>
 
-        {/* ===== Files ===== */}
+        {/* ===== Files (with pin/reorder) ===== */}
         <section id="panel-files" class="adm-panel">
           <div class="adm-panel-header">
             <h2><i class="fa-solid fa-cloud-arrow-up"></i> {t('admin', 'fileManager', lang)}</h2>
             <div style="display:flex;gap:8px;align-items:center">
+              <span class="adm-header-badge" id="filePinnedCount" style={pinnedFiles.length > 0 ? '' : 'display:none'}>
+                <i class="fa-solid fa-thumbtack"></i> {pinnedFiles.length} {lang === 'zh' ? '置顶' : 'pinned'}
+              </span>
               <button class="adm-btn adm-btn-danger" id="batchDeleteFiles" style="display:none">
                 <i class="fa-solid fa-trash"></i> <span id="batchDeleteCount">0</span>
               </button>
@@ -254,12 +311,17 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
             </div>
           </div>
 
-          {/* File search */}
-          <div class="adm-card" style="padding:12px 16px;margin-bottom:12px">
-            <div style="display:flex;gap:10px;align-items:center">
-              <i class="fa-solid fa-search" style="color:var(--text-tertiary)"></i>
-              <input type="text" id="fileSearch" placeholder={lang === 'zh' ? '搜索文件名...' : 'Search files...'} style="flex:1;border:none;background:transparent;color:var(--text-primary);outline:none;font-size:0.9rem" />
-              <label style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:var(--text-secondary);cursor:pointer">
+          {/* File search + filter bar */}
+          <div class="adm-file-toolbar">
+            <div class="adm-search-box">
+              <i class="fa-solid fa-search"></i>
+              <input type="text" id="fileSearch" placeholder={lang === 'zh' ? '搜索文件名...' : 'Search files...'} />
+            </div>
+            <div class="adm-file-toolbar-actions">
+              <button class="adm-btn-sm" id="filterPinnedFiles" title={lang === 'zh' ? '只显示置顶' : 'Show pinned only'}>
+                <i class="fa-solid fa-thumbtack"></i> {lang === 'zh' ? '置顶' : 'Pinned'}
+              </button>
+              <label class="adm-checkbox-label">
                 <input type="checkbox" id="selectAllFiles" /> {lang === 'zh' ? '全选' : 'All'}
               </label>
             </div>
@@ -300,20 +362,24 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
           </div>
 
           <div id="filesList" class="adm-items">
-            {files.map((f: any) => (
-              <div class="adm-item adm-file-item" data-key={f.key} data-name={(f.displayName || '').toLowerCase()} key={f.key}>
+            {sortedFiles.map((f: any) => (
+              <div class={`adm-item adm-file-item adm-item-sortable${f.pinned ? ' adm-item-pinned' : ''}`} data-key={f.key} data-name={(f.displayName || '').toLowerCase()} key={f.key}>
                 <label class="adm-file-checkbox"><input type="checkbox" class="file-select-cb" data-key={f.key} /></label>
                 <div class="adm-item-icon">
                   <i class={f.isExternal ? 'fa-solid fa-link' : getFileIcon(f.type)}></i>
                 </div>
                 <div class="adm-item-body">
-                  <strong>{f.displayName}</strong>
+                  <strong>
+                    {f.pinned && <span class="adm-pin-badge"><i class="fa-solid fa-thumbtack"></i> {lang === 'zh' ? '置顶' : 'PIN'}</span>}
+                    {f.displayName}
+                  </strong>
                   <span class="adm-item-sub">
                     {f.originalName} · {formatSize(f.size)} · {new Date(f.uploadedAt).toLocaleDateString()}
                     {f.isExternal ? ` · ${t('admin', 'external', lang)}` : f.storageType === 'local' ? ` · ${t('admin', 'localStorageInfo', lang)}` : ' · KV'}
                   </span>
                 </div>
                 <div class="adm-item-actions">
+                  <button class={`adm-btn-icon pin-file${f.pinned ? ' adm-btn-icon-active' : ''}`} data-key={f.key} title={lang === 'zh' ? '置顶/取消' : 'Pin/Unpin'}><i class="fa-solid fa-thumbtack"></i></button>
                   {f.type && f.type.startsWith('image/') && !f.isExternal && (
                     <button class="adm-btn-icon preview-file" data-url={'/api/download/' + f.key} title={lang === 'zh' ? '预览' : 'Preview'}><i class="fa-solid fa-eye"></i></button>
                   )}
@@ -490,12 +556,12 @@ function dashboardView({ profile, websites, repos, files, settings, lang: dataLa
       </div>
       <div class="adm-toast-container" id="toastContainer"></div>
 
-      {/* SAFE JSON injection — prevents </script> XSS */}
+      {/* SAFE JSON injection */}
       {raw(`<script>
         window.__DATA__ = ${safeJsonStringify({
-          websites,
+          websites: sortedWebsites,
           repos,
-          files,
+          files: sortedFiles,
           settings: st,
           lang,
           announcements: anns,

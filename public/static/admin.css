@@ -1218,21 +1218,246 @@
 }
 
 /* ==========================================
-   NEW: Pinned Items
+   PINNED ITEMS — Admin Panel
    ========================================== */
 .adm-item-pinned {
   border-left: 3px solid var(--accent);
   background: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
 }
 
-.adm-pin-indicator {
+.adm-pin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+.adm-pin-badge i {
+  font-size: 0.55rem;
+}
+
+.adm-btn-icon-active {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-color: var(--accent) !important;
+}
+
+.adm-btn-icon-active:hover {
+  background: var(--accent-hover, #5558E6) !important;
+  border-color: var(--accent-hover, #5558E6) !important;
+}
+
+/* Drag handle */
+.adm-item-drag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  color: var(--text-tertiary);
+  cursor: grab;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.adm-item-sortable:hover .adm-item-drag {
+  opacity: 0.8;
+}
+
+.adm-item-drag:active {
+  cursor: grabbing;
+}
+
+/* Header badge (pinned count) */
+.adm-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent-soft);
   color: var(--accent);
-  font-size: 0.7rem;
-  margin-left: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+/* Nav badge (sidebar pin count) */
+.adm-nav-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 99px;
+  margin-left: auto;
+  min-width: 18px;
+  justify-content: center;
+}
+
+/* File toolbar */
+.adm-file-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.adm-search-box {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  transition: border-color var(--transition);
+}
+
+.adm-search-box:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.adm-search-box i {
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+}
+
+.adm-search-box input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  outline: none;
+  font-size: 0.88rem;
+  font-family: var(--font);
+}
+
+.adm-file-toolbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.adm-btn-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: var(--radius-xs);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+
+.adm-btn-sm:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.adm-btn-sm-active {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-color: var(--accent) !important;
+}
+
+.adm-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.adm-checkbox-label input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Pinned overview (dashboard) */
+.adm-pinned-overview {
+  background: linear-gradient(135deg, var(--bg-card), color-mix(in srgb, var(--accent) 5%, var(--bg-card)));
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+}
+
+.adm-pinned-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.adm-pinned-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: all 0.15s;
+}
+
+.adm-pinned-chip:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(99,102,241,0.08);
+}
+
+.adm-pinned-chip i {
+  font-size: 0.85rem;
+}
+
+.adm-pinned-chip-type {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  padding: 1px 5px;
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.adm-pinned-chip-website .adm-pinned-chip-type {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.adm-pinned-chip-file .adm-pinned-chip-type {
+  color: #F59E0B;
+  background: rgba(245,158,11,0.1);
 }
 
 /* ==========================================
-   NEW: File Management
+   File Management
    ========================================== */
 .adm-file-checkbox {
   display: flex;
@@ -1259,7 +1484,7 @@
 }
 
 /* ==========================================
-   NEW: Pinned Badge (Projects Page)
+   Pinned Badge (Projects Page)
    ========================================== */
 .pj-card-pinned {
   border: 2px solid var(--accent) !important;
@@ -1288,6 +1513,29 @@
   font-size: 0.6rem;
 }
 
+/* Pinned file badge (Downloads Page) */
+.dl-item-pinned {
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 4%, var(--bg-card));
+}
+
+.dl-pin-badge {
+  display: inline-flex;
+  align-items: center;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.dl-pin-badge i {
+  font-size: 0.5rem;
+}
+
 @media (max-width: 768px) {
   .adm-stats-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1297,5 +1545,15 @@
   }
   .adm-stat-num {
     font-size: 1.2rem;
+  }
+  .adm-file-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .adm-search-box {
+    min-width: auto;
+  }
+  .adm-file-toolbar-actions {
+    justify-content: space-between;
   }
 }

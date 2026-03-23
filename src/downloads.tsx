@@ -38,7 +38,13 @@ function fileColor(type: string): string {
 }
 
 export function downloadsPage(files: any[], lang: Lang = 'zh', isAdmin: boolean = false) {
-  const totalSize = files.reduce((a: number, f: any) => a + (f.size || 0), 0)
+  // Sort: pinned first, then by order/upload time
+  const sorted = [...files].sort((a: any, b: any) => {
+    if (a.pinned && !b.pinned) return -1
+    if (!a.pinned && b.pinned) return 1
+    return (a.order || 0) - (b.order || 0)
+  })
+  const totalSize = sorted.reduce((a: number, f: any) => a + (f.size || 0), 0)
 
   const content = (
     <main class="page-content">
@@ -52,14 +58,14 @@ export function downloadsPage(files: any[], lang: Lang = 'zh', isAdmin: boolean 
         </h1>
         <span class="page-header-count" id="dlCount">
           {lang === 'zh'
-            ? `${files.length} 个文件 · ${formatSize(totalSize)}`
-            : `${files.length} file${files.length !== 1 ? 's' : ''} · ${formatSize(totalSize)}`
+            ? `${sorted.length} 个文件 · ${formatSize(totalSize)}`
+            : `${sorted.length} file${sorted.length !== 1 ? 's' : ''} · ${formatSize(totalSize)}`
           }
         </span>
       </div>
 
       {/* Search bar */}
-      {files.length > 0 && (
+      {sorted.length > 0 && (
         <div class="dl-search-wrap">
           <div class="dl-search-box">
             <i class="fa-solid fa-magnifying-glass dl-search-icon"></i>
@@ -78,7 +84,7 @@ export function downloadsPage(files: any[], lang: Lang = 'zh', isAdmin: boolean 
         </div>
       )}
 
-      {files.length === 0 && (
+      {sorted.length === 0 && (
         <div class="page-empty">
           <div class="page-empty-icon"><i class="fa-solid fa-folder-open"></i></div>
           <p class="page-empty-title">{lang === 'zh' ? '暂无文件' : 'No files yet'}</p>
@@ -87,18 +93,21 @@ export function downloadsPage(files: any[], lang: Lang = 'zh', isAdmin: boolean 
       )}
 
       <div class="dl-list" id="dlList">
-        {files.map((file: any, i: number) => {
+        {sorted.map((file: any, i: number) => {
           const name = file.displayName || file.originalName || file.key
           const ext = name.includes('.') ? name.split('.').pop()!.toLowerCase() : ''
           const searchData = [name, file.type || '', ext, file.isExternal ? 'external' : '', file.storageType || ''].join('|')
           const color = fileColor(file.type)
           return (
-            <div class="dl-item" data-aos={i + 1} data-search={searchData} style={`animation-delay:${Math.min(i * 0.04, 0.3)}s; --file-color:${color}`} key={file.key}>
+            <div class={`dl-item${file.pinned ? ' dl-item-pinned' : ''}`} data-aos={i + 1} data-search={searchData} style={`animation-delay:${Math.min(i * 0.04, 0.3)}s; --file-color:${color}`} key={file.key}>
               <div class="dl-item-icon">
                 <i class={fileIcon(file.type)}></i>
               </div>
               <div class="dl-item-info">
-                <h3 class="dl-item-name">{name}</h3>
+                <h3 class="dl-item-name">
+                  {file.pinned && <span class="dl-pin-badge"><i class="fa-solid fa-thumbtack"></i></span>}
+                  {name}
+                </h3>
                 <div class="dl-item-meta">
                   <span class="dl-item-size">{formatSize(file.size)}</span>
                   {file.isExternal && <span class="dl-item-badge dl-badge-ext">{lang === 'zh' ? '外部' : 'External'}</span>}

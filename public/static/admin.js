@@ -1,5 +1,5 @@
 // ========================================
-// ADMIN PANEL — Frontend Logic (v2: dashboard, pin, file management, export/import)
+// ADMIN PANEL — Frontend Logic (v3: full pin support for websites & files)
 // ========================================
 (() => {
   'use strict';
@@ -7,6 +7,7 @@
   const D = window.__DATA__ || { websites: [], repos: [], files: [], settings: {}, lang: 'zh', csrfToken: '', shares: [] };
   let websites = [...D.websites];
   let repos = [...D.repos];
+  let files = [...D.files];
   let settings = { ...D.settings };
   const lang = D.lang || 'zh';
   const csrfToken = D.csrfToken || '';
@@ -48,6 +49,8 @@
     lblFileName: zh ? '文件名' : 'File Name',
     lblFileSize: zh ? '文件大小(字节)' : 'File Size (bytes)',
     lblMimeType: zh ? 'MIME 类型' : 'MIME Type',
+    pinned: zh ? '已置顶!' : 'Pinned!',
+    unpinned: zh ? '已取消置顶!' : 'Unpinned!',
   };
 
   // === Helpers ===
@@ -82,6 +85,14 @@
     return d.innerHTML;
   }
 
+  function sortByPin(arr) {
+    return [...arr].sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return (a.order || 0) - (b.order || 0);
+    });
+  }
+
   // === Tab Navigation ===
   document.querySelectorAll('.adm-nav-item[data-tab]').forEach(item => {
     item.addEventListener('click', (e) => {
@@ -106,11 +117,13 @@
     modalBody.innerHTML = html;
     onModalSave = onSave;
     overlay.style.display = 'flex';
+    if (modalSave) modalSave.style.display = '';
   }
 
   function closeModal() {
     overlay.style.display = 'none';
     onModalSave = null;
+    if (modalSave) modalSave.style.display = '';
   }
 
   document.getElementById('modalClose').addEventListener('click', closeModal);
@@ -212,20 +225,53 @@
     } catch (e) { toast(e.message, 'error'); }
   }
 
+  function fileIconClass(mimeType) {
+    if (!mimeType) return 'fa-solid fa-file';
+    if (mimeType.startsWith('image/')) return 'fa-solid fa-file-image';
+    if (mimeType.startsWith('video/')) return 'fa-solid fa-file-video';
+    if (mimeType.startsWith('audio/')) return 'fa-solid fa-file-audio';
+    if (mimeType.includes('pdf')) return 'fa-solid fa-file-pdf';
+    if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z') || mimeType.includes('tar')) return 'fa-solid fa-file-zipper';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'fa-solid fa-file-word';
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'fa-solid fa-file-excel';
+    if (mimeType.startsWith('text/') || mimeType.includes('json') || mimeType.includes('xml')) return 'fa-solid fa-file-code';
+    return 'fa-solid fa-file';
+  }
+
+  function formatSizeJS(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+  }
+
   function renderWebsites() {
+    const sorted = sortByPin(websites);
     const list = document.getElementById('websitesList');
-    list.innerHTML = websites.map((w, idx) => `
-      <div class="adm-item${w.pinned ? ' adm-item-pinned' : ''}" data-id="${w.id}">
+    list.innerHTML = sorted.map((w) => `
+      <div class="adm-item adm-item-sortable${w.pinned ? ' adm-item-pinned' : ''}" data-id="${w.id}">
+        <div class="adm-item-drag" title="${zh ? '拖拽排序' : 'Drag to reorder'}"><i class="fa-solid fa-grip-vertical"></i></div>
         <div class="adm-item-icon" style="color:${w.color || '#E8A838'}"><i class="${w.icon || 'fa-solid fa-globe'}"></i></div>
-        <div class="adm-item-body"><strong>${esc(w.title)} ${w.pinned ? '<span class="adm-pin-indicator"><i class="fa-solid fa-thumbtack"></i></span>' : ''}</strong><span class="adm-item-sub">${esc(w.description)}</span></div>
+        <div class="adm-item-body">
+          <strong>${w.pinned ? '<span class="adm-pin-badge"><i class="fa-solid fa-thumbtack"></i> ' + (zh ? '置顶' : 'PIN') + '</span>' : ''}${esc(w.title)}</strong>
+          <span class="adm-item-sub">${esc(w.description)}</span>
+        </div>
         <div class="adm-item-actions">
-          <button class="adm-btn-icon pin-website" title="${zh ? '置顶/取消' : 'Pin/Unpin'}" style="${w.pinned ? 'color:var(--accent)' : ''}"><i class="fa-solid fa-thumbtack"></i></button>
+          <button class="adm-btn-icon pin-website${w.pinned ? ' adm-btn-icon-active' : ''}" title="${zh ? '置顶/取消' : 'Pin/Unpin'}"><i class="fa-solid fa-thumbtack"></i></button>
           <button class="adm-btn-icon move-up-website" title="${zh ? '上移' : 'Move Up'}"><i class="fa-solid fa-arrow-up"></i></button>
           <button class="adm-btn-icon move-down-website" title="${zh ? '下移' : 'Move Down'}"><i class="fa-solid fa-arrow-down"></i></button>
           <button class="adm-btn-icon edit-website" title="${i.editWebsite}"><i class="fa-solid fa-pen"></i></button>
           <button class="adm-btn-icon adm-btn-icon-danger delete-website" title="${zh ? '删除' : 'Delete'}"><i class="fa-solid fa-trash"></i></button>
         </div>
       </div>`).join('');
+    // Update pinned count badge
+    const pinnedCount = websites.filter(w => w.pinned).length;
+    const badge = document.getElementById('websitePinnedCount');
+    if (badge) {
+      badge.innerHTML = `<i class="fa-solid fa-thumbtack"></i> ${pinnedCount} ${zh ? '置顶' : 'pinned'}`;
+      badge.style.display = pinnedCount > 0 ? '' : 'none';
+    }
     bindWebsiteEvents();
   }
 
@@ -256,6 +302,7 @@
         const w = websites.find(x => x.id === id);
         if (!w) return;
         w.pinned = !w.pinned;
+        toast(w.pinned ? i.pinned : i.unpinned);
         await saveWebsites();
       });
     });
@@ -422,12 +469,13 @@
   }
 
   // =============================================
-  // === FILE SEARCH & BATCH OPERATIONS ===
+  // === FILE SEARCH, FILTER & BATCH OPERATIONS ===
   // =============================================
   const fileSearch = document.getElementById('fileSearch');
   const selectAllCb = document.getElementById('selectAllFiles');
   const batchDeleteBtn = document.getElementById('batchDeleteFiles');
   const batchDeleteCount = document.getElementById('batchDeleteCount');
+  let filterPinnedOnly = false;
 
   function updateBatchDeleteUI() {
     const checked = document.querySelectorAll('.file-select-cb:checked');
@@ -435,13 +483,28 @@
     if (batchDeleteCount) batchDeleteCount.textContent = `${zh ? '删除' : 'Delete'} ${checked.length}`;
   }
 
+  function applyFileFilters() {
+    const q = (fileSearch ? fileSearch.value : '').toLowerCase();
+    document.querySelectorAll('.adm-file-item').forEach(item => {
+      const name = item.getAttribute('data-name') || '';
+      const matchesSearch = !q || name.includes(q);
+      const isPinned = item.classList.contains('adm-item-pinned');
+      const matchesFilter = !filterPinnedOnly || isPinned;
+      item.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
+    });
+  }
+
   if (fileSearch) {
-    fileSearch.addEventListener('input', () => {
-      const q = fileSearch.value.toLowerCase();
-      document.querySelectorAll('.adm-file-item').forEach(item => {
-        const name = item.getAttribute('data-name') || '';
-        item.style.display = name.includes(q) ? '' : 'none';
-      });
+    fileSearch.addEventListener('input', applyFileFilters);
+  }
+
+  // Filter pinned only toggle
+  const filterPinnedBtn = document.getElementById('filterPinnedFiles');
+  if (filterPinnedBtn) {
+    filterPinnedBtn.addEventListener('click', () => {
+      filterPinnedOnly = !filterPinnedOnly;
+      filterPinnedBtn.classList.toggle('adm-btn-sm-active', filterPinnedOnly);
+      applyFileFilters();
     });
   }
 
@@ -455,7 +518,6 @@
     });
   }
 
-  // Bind checkbox changes
   document.addEventListener('change', (e) => {
     if (e.target.classList.contains('file-select-cb')) updateBatchDeleteUI();
   });
@@ -471,10 +533,53 @@
         await api('/admin/api/delete-files-batch', { keys });
         toast(zh ? `${keys.length} 个文件已删除!` : `${keys.length} files deleted!`);
         checked.forEach(cb => cb.closest('.adm-item')?.remove());
+        files = files.filter(f => !keys.includes(f.key));
         updateBatchDeleteUI();
+        updateFilePinnedCount();
       } catch (e) { toast(e.message, 'error'); }
     });
   }
+
+  // =============================================
+  // === FILE PIN TOGGLE ===
+  // =============================================
+  function updateFilePinnedCount() {
+    const pinnedCount = files.filter(f => f.pinned).length;
+    const badge = document.getElementById('filePinnedCount');
+    if (badge) {
+      badge.innerHTML = `<i class="fa-solid fa-thumbtack"></i> ${pinnedCount} ${zh ? '置顶' : 'pinned'}`;
+      badge.style.display = pinnedCount > 0 ? '' : 'none';
+    }
+  }
+
+  document.addEventListener('click', async (e) => {
+    const pinBtn = e.target.closest('.pin-file');
+    if (pinBtn) {
+      const key = pinBtn.getAttribute('data-key');
+      try {
+        const result = await api('/admin/api/files/pin', { key });
+        const f = files.find(x => x.key === key);
+        if (f) f.pinned = result.pinned;
+        const item = pinBtn.closest('.adm-item');
+        if (result.pinned) {
+          item.classList.add('adm-item-pinned');
+          pinBtn.classList.add('adm-btn-icon-active');
+          // Add pin badge to name
+          const strong = item.querySelector('.adm-item-body strong');
+          if (strong && !strong.querySelector('.adm-pin-badge')) {
+            strong.insertAdjacentHTML('afterbegin', `<span class="adm-pin-badge"><i class="fa-solid fa-thumbtack"></i> ${zh ? '置顶' : 'PIN'}</span>`);
+          }
+        } else {
+          item.classList.remove('adm-item-pinned');
+          pinBtn.classList.remove('adm-btn-icon-active');
+          const badge = item.querySelector('.adm-pin-badge');
+          if (badge) badge.remove();
+        }
+        updateFilePinnedCount();
+        toast(result.pinned ? i.pinned : i.unpinned);
+      } catch (err) { toast(err.message, 'error'); }
+    }
+  });
 
   // =============================================
   // === FILE RENAME ===
@@ -493,11 +598,14 @@
           await api('/admin/api/rename-file', { key, displayName: newName });
           toast(zh ? '已重命名!' : 'Renamed!');
           closeModal();
-          // Update DOM
           const item = document.querySelector(`.adm-file-item[data-key="${key}"]`);
           if (item) {
             const strong = item.querySelector('.adm-item-body strong');
-            if (strong) strong.textContent = newName;
+            const pinBadge = strong ? strong.querySelector('.adm-pin-badge') : null;
+            if (strong) {
+              strong.textContent = newName;
+              if (pinBadge) strong.insertAdjacentElement('afterbegin', pinBadge);
+            }
             item.setAttribute('data-name', newName.toLowerCase());
             renameBtn.setAttribute('data-name', newName);
           }
@@ -518,16 +626,9 @@
           <img src="${url}" style="max-width:100%;max-height:60vh;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15)" />
         </div>
       `, () => closeModal());
-      // Hide save button for preview
       if (modalSave) modalSave.style.display = 'none';
-      // Restore on close
-      const origClose = closeModal;
-      window._restoreModal = () => { if (modalSave) modalSave.style.display = ''; };
     }
   });
-
-  // Restore modal save button on close
-  const origCloseModal = closeModal;
 
   // === Add Link File (External mode) ===
   const addLinkBtn = document.getElementById('addLinkFile');
@@ -566,7 +667,9 @@
         await api('/admin/api/delete-file', { key });
         toast(i.fileDeleted);
         btn.closest('.adm-item').remove();
+        files = files.filter(f => f.key !== key);
         updateBatchDeleteUI();
+        updateFilePinnedCount();
       } catch (e) { toast(e.message, 'error'); }
     });
   });

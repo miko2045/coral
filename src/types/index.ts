@@ -60,6 +60,8 @@ export interface FileMeta {
   storageType?: 'kv' | 'local'
   isExternal?: boolean
   externalUrl?: string
+  pinned?: boolean
+  order?: number
 }
 
 export interface ShareLink {

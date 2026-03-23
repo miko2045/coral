@@ -140,6 +140,30 @@ admin.post('/admin/api/websites/reorder', async (c) => {
   return c.json({ ok: true })
 })
 
+// === File Pin Toggle ===
+admin.post('/admin/api/files/pin', async (c) => {
+  const { key } = await c.req.json()
+  if (!key) return c.json({ error: 'Missing key' }, 400)
+  const files: FileMeta[] = await getData(c.env.KV, 'files', [])
+  const file = files.find(f => f.key === key)
+  if (!file) return c.json({ error: 'File not found' }, 404)
+  file.pinned = !file.pinned
+  await kvPut(c.env.KV, 'files', JSON.stringify(files))
+  return c.json({ ok: true, pinned: file.pinned })
+})
+
+// === File Reorder ===
+admin.post('/admin/api/files/reorder', async (c) => {
+  const { keys } = await c.req.json() as { keys: string[] }
+  if (!keys || !Array.isArray(keys)) return c.json({ error: 'Missing keys array' }, 400)
+  const files: FileMeta[] = await getData(c.env.KV, 'files', [])
+  const reordered = keys.map(k => files.find(f => f.key === k)).filter(Boolean) as FileMeta[]
+  const remaining = files.filter(f => !keys.includes(f.key))
+  const final = [...reordered, ...remaining].map((f, i) => ({ ...f, order: i }))
+  await kvPut(c.env.KV, 'files', JSON.stringify(final))
+  return c.json({ ok: true })
+})
+
 // === Repos API ===
 admin.post('/admin/api/repos', async (c) => {
   const data = await c.req.json()
