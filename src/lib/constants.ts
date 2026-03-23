@@ -13,7 +13,7 @@ export const DEFAULT_PROFILE: Profile = {
   quote: 'The best way to predict the future is to invent it.',
   quoteAuthor: 'Alan Kay',
   socials: {
-    github: 'https://github.com',
+    github: 'https://github.com/miko2045',
     twitter: 'https://twitter.com',
   },
 }
