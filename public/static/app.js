@@ -104,50 +104,29 @@
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
     const iconClass = mode === 'auto' ? 'fa-solid fa-circle-half-stroke' : actual === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
 
-    // No visual change — just update icon
     if (actual === currentTheme) {
       document.querySelectorAll('.theme-toggle i').forEach(i => i.className = iconClass);
       return;
     }
 
-    const switchTheme = () => {
-      document.documentElement.setAttribute('data-theme', actual);
-      document.documentElement.style.colorScheme = actual === 'dark' ? 'dark only' : 'light only';
-      document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', actual === 'dark' ? 'dark only' : 'light only');
+    // Switch instantly — no overlay, no delay
+    document.documentElement.setAttribute('data-theme', actual);
+    document.documentElement.style.colorScheme = actual === 'dark' ? 'dark only' : 'light only';
+    document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', actual === 'dark' ? 'dark only' : 'light only');
+
+    // Icon rotate animation as visual feedback (only on user click)
+    if (clickEvent && !themeAnimating) {
+      themeAnimating = true;
+      document.querySelectorAll('.theme-toggle i').forEach(i => {
+        i.className = iconClass + ' theme-icon-anim';
+      });
+      setTimeout(() => {
+        themeAnimating = false;
+        document.querySelectorAll('.theme-toggle i').forEach(i => i.classList.remove('theme-icon-anim'));
+      }, 350);
+    } else {
       document.querySelectorAll('.theme-toggle i').forEach(i => i.className = iconClass);
-    };
-
-    // No animation on initial load
-    if (!clickEvent) { switchTheme(); return; }
-    if (themeAnimating) return;
-    themeAnimating = true;
-
-    // Icon spin
-    document.querySelectorAll('.theme-toggle i').forEach(i => {
-      i.className = iconClass + ' theme-icon-spin';
-    });
-
-    // Simple fast overlay — opacity only, GPU composited
-    const overlay = document.createElement('div');
-    overlay.className = 'theme-fade-overlay';
-    overlay.style.background = actual === 'dark' ? '#0F0F0F' : '#FBF8F3';
-    document.body.appendChild(overlay);
-
-    // Phase 1: fade in (220ms)
-    requestAnimationFrame(() => overlay.classList.add('active'));
-
-    // Phase 2: switch while covered
-    setTimeout(switchTheme, 180);
-
-    // Phase 3: fade out
-    setTimeout(() => overlay.classList.remove('active'), 260);
-
-    // Cleanup
-    setTimeout(() => {
-      overlay.remove();
-      themeAnimating = false;
-      document.querySelectorAll('.theme-toggle i').forEach(i => i.classList.remove('theme-icon-spin'));
-    }, 480);
+    }
   }
 
   // Listen for system theme changes (for auto mode)
@@ -1080,7 +1059,7 @@
           // Fade in with upward slide
           const newPortal = document.querySelector('.portal') || document.body;
           newPortal.classList.add('lang-switch-in');
-          setTimeout(() => newPortal.classList.remove('lang-switch-in'), 350);
+          setTimeout(() => newPortal.classList.remove('lang-switch-in'), 300);
           // Re-init all behaviors
           lang = newLang;
           initHeaderScroll();
@@ -1095,7 +1074,7 @@
         } else {
           window.location.reload();
         }
-      }, 260);
+      }, 230);
       return;
     }
   });

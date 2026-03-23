@@ -72,25 +72,12 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* View Transitions API — simple cross-fade, no expensive filters */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 0.3s;
-  animation-timing-function: ease;
-}
-::view-transition-old(root) { animation-name: vtOut; }
-::view-transition-new(root) { animation-name: vtIn; }
-@keyframes vtOut { to { opacity: 0; } }
-@keyframes vtIn  { from { opacity: 0; } }
-
-/* Reduce motion */
+/* Reduce motion — accessibility */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
-  ::view-transition-old(root),
-  ::view-transition-new(root) { animation: none !important; }
 }
 
 body {
@@ -3239,43 +3226,29 @@ a { text-decoration: none; color: inherit; }
   }
 }
 
-/* === Language Switch — GPU-friendly opacity+transform only === */
+/* === Language Switch — opacity + slide (GPU only) === */
 .lang-switch-out {
-  animation: langOut 0.25s ease forwards;
+  animation: langOut 0.22s ease-out forwards;
 }
 .lang-switch-in {
-  animation: langIn 0.3s ease forwards;
+  animation: langIn 0.28s ease-out forwards;
 }
 @keyframes langOut {
-  to { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 0; transform: translateY(-5px); }
 }
 @keyframes langIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Lang toggle button — simple scale */
-.lang-toggle .lang-label {
-  display: inline-block;
+/* === Theme Switch — icon rotate (GPU only, no overlay) === */
+.theme-icon-anim {
+  animation: iconFlip 0.35s ease;
 }
-.lang-toggle:active .lang-label {
-  transform: scale(0.85);
-  opacity: 0.5;
-}
-
-/* === Theme Switch — lightweight icon spin === */
-.theme-icon-spin {
-  animation: themeIconSpin 0.4s ease;
-}
-@keyframes themeIconSpin {
+@keyframes iconFlip {
   0%   { transform: rotate(0deg) scale(1); }
-  50%  { transform: rotate(180deg) scale(0.8); }
+  40%  { transform: rotate(180deg) scale(0.75); }
   100% { transform: rotate(360deg) scale(1); }
-}
-
-/* Theme toggle button — tap feedback */
-.theme-toggle:active {
-  transform: scale(0.88);
 }
 
 /* === Trending Responsive === */
@@ -3614,19 +3587,7 @@ a { text-decoration: none; color: inherit; }
    THEME SWITCH — Lightweight Fade
    ====================================== */
 
-/* Theme overlay — pure opacity, zero layout cost */
-.theme-fade-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 999999;
-  pointer-events: none;
-  opacity: 0;
-  will-change: opacity;
-  transition: opacity 0.22s ease;
-}
-.theme-fade-overlay.active {
-  opacity: 1;
-}
+/* (theme overlay removed — instant switch is faster and jank-free) */
 
 /* ===========================================================
    SIDEBAR WIDGETS — Right-side fixed vertical toolbar
@@ -4196,9 +4157,4 @@ a { text-decoration: none; color: inherit; }
   }
 }
 
-/* Icon spin keyframes (referenced above) */
-@keyframes themeIconSpin {
-  0%   { transform: rotate(0deg) scale(1); }
-  50%  { transform: rotate(180deg) scale(0.8); }
-  100% { transform: rotate(360deg) scale(1); }
-}
+/* (duplicate keyframes cleaned up) */
