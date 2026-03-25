@@ -9,11 +9,11 @@ export const renderer = jsxRenderer(({ children, title, lang, isAdmin, descripti
   const pageCanonical = canonical ? `${siteUrl}${canonical}` : siteUrl
   const pageOgImage = ogImage || `${siteUrl}/static/avatar.svg`
   return (
-    <html lang={htmlLang} style="color-scheme: light only">
+    <html lang={htmlLang}>
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-        <meta name="color-scheme" content="light only" />
+        <meta name="color-scheme" content="light dark" />
         <title>{pageTitle}</title>
         {/* SEO Meta */}
         <meta name="description" content={pageDesc} />
@@ -43,6 +43,8 @@ export const renderer = jsxRenderer(({ children, title, lang, isAdmin, descripti
         <link href="/static/fontawesome.css" rel="stylesheet" />
         <link href="/static/style.css" rel="stylesheet" />
         {isAdmin && <link href="/static/admin.css" rel="stylesheet" />}
+        {/* Inline theme init — prevents flash of wrong theme */}
+        <script dangerouslySetInnerHTML={{__html: `(function(){var s=localStorage.getItem('portal-theme');var d=s==='dark'||(s!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(d){document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark only';document.querySelector('meta[name=color-scheme]').setAttribute('content','dark only')}else{document.documentElement.style.colorScheme='light only';document.querySelector('meta[name=color-scheme]').setAttribute('content','light only')}})()`}} />
         {/* Load Google Fonts asynchronously — only weights actually used */}
         <script dangerouslySetInnerHTML={{__html: `(function(){var l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@400;700&display=swap';document.head.appendChild(l);})()`}} />
         {/* JSON-LD Structured Data */}
