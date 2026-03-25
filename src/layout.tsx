@@ -1,4 +1,4 @@
-/** layout.tsx — 共享页面布局：header + bg + footer */
+/** layout.tsx — Refined minimal layout with floating pill nav */
 import type { Lang } from './i18n'
 import { t } from './i18n'
 
@@ -13,49 +13,29 @@ export function pageLayout({ lang, activePage, children }: LayoutProps) {
   const langLabel = lang === 'zh' ? 'EN' : '中'
 
   return (
-    <div class="portal">
-      <div class="bg-decor">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
-        <div class="grain"></div>
-      </div>
-
-      {/* ===== FIXED HEADER — outside .container so it never moves ===== */}
+    <div class="portal site">
+      {/* ===== FLOATING PILL HEADER ===== */}
       <header class="header" id="siteHeader">
         <div class="header-inner">
-          <div class="header-left">
-            <a href="/" class="logo-link">
-              <span class="logo-dot"></span>
-              <span class="logo-text">portal</span>
-            </a>
-          </div>
-          <nav class="header-nav" id="headerNav">
-            <a href="/" class={`nav-link ${activePage === 'home' ? 'active' : ''}`}>
-              <i class="fa-solid fa-house"></i><span>{t('nav', 'home', lang)}</span>
-            </a>
-            <a href="/projects" class={`nav-link ${activePage === 'projects' ? 'active' : ''}`}>
-              <i class="fa-solid fa-cube"></i><span>{t('nav', 'projects', lang)}</span>
-            </a>
-            <a href="/github" class={`nav-link ${activePage === 'github' ? 'active' : ''}`}>
-              <i class="fa-brands fa-github"></i><span>{t('nav', 'github', lang)}</span>
-            </a>
-            <a href="/downloads" class={`nav-link ${activePage === 'downloads' ? 'active' : ''}`}>
-              <i class="fa-solid fa-cloud-arrow-down"></i><span>{t('nav', 'downloads', lang)}</span>
-            </a>
-            <a href="/trending" class={`nav-link ${activePage === 'trending' ? 'active' : ''}`}>
-              <i class="fa-solid fa-fire-flame-curved"></i><span>{t('nav', 'trending', lang)}</span>
-            </a>
-            <div class="nav-indicator" id="navIndicator"></div>
+          <a href="/" class="logo">portal<span class="logo-dot">.</span></a>
+
+          <nav class="nav-pill header-nav" id="headerNav">
+            <a href="/" class={`nav-link ${activePage === 'home' ? 'active' : ''}`}>{t('nav', 'home', lang)}</a>
+            <a href="/projects" class={`nav-link ${activePage === 'projects' ? 'active' : ''}`}>{t('nav', 'projects', lang)}</a>
+            <a href="/github" class={`nav-link ${activePage === 'github' ? 'active' : ''}`}>GitHub</a>
+            <a href="/downloads" class={`nav-link ${activePage === 'downloads' ? 'active' : ''}`}>{t('nav', 'downloads', lang)}</a>
+            <a href="/trending" class={`nav-link ${activePage === 'trending' ? 'active' : ''}`}>{t('nav', 'trending', lang)}</a>
+            <span class="nav-indicator" id="navIndicator"></span>
           </nav>
+
           <div class="header-actions">
-            <a href="/admin" class="header-icon-btn admin-entry" title={lang === 'zh' ? '后台管理' : 'Admin Panel'}>
+            <a href="/admin" class="header-btn header-icon-btn admin-entry" title={lang === 'zh' ? '后台管理' : 'Admin'}>
               <i class="fa-solid fa-gear"></i>
             </a>
-            <a href={`/api/set-lang?lang=${otherLang}`} class="header-icon-btn lang-toggle" id="langToggle" title={lang === 'zh' ? 'Switch to English' : '切换到中文'}>
-              <span class="lang-label">{langLabel}</span>
+            <a href={`/api/set-lang?lang=${otherLang}`} class="header-btn header-icon-btn lang-toggle" id="langToggle" title={lang === 'zh' ? 'English' : '中文'}>
+              {langLabel}
             </a>
-            <button class="header-icon-btn theme-toggle" id="themeToggle" aria-label="Toggle theme">
+            <button class="header-btn header-icon-btn theme-toggle" id="themeToggle" aria-label="Toggle theme">
               <i class="fa-solid fa-circle-half-stroke"></i>
             </button>
             <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu">
@@ -67,20 +47,23 @@ export function pageLayout({ lang, activePage, children }: LayoutProps) {
         </div>
       </header>
 
-      <div class="container">
+      {/* ===== MAIN CONTENT ===== */}
+      <main class="main">
         <div id="pageContent" class="page-transition" data-page={activePage}>
           {children}
         </div>
+      </main>
 
-        <footer class="page-footer">
-          <p>{t('home', 'builtWith', lang)} <i class="fa-solid fa-heart" style="color: #EF4444"></i> {t('home', 'and', lang)} <a href="https://hono.dev" target="_blank" rel="noopener">Hono</a></p>
-          <p class="footer-sub">{t('home', 'deployedOn', lang)}</p>
-        </footer>
-      </div>
+      {/* ===== FOOTER ===== */}
+      <footer class="site-footer">
+        <div class="footer-inner">
+          <span class="footer-brand">portal<span class="footer-dot">.</span></span>
+          <p class="footer-text">{t('home', 'builtWith', lang)} <i class="fa-solid fa-heart" style="color: var(--accent)"></i> {t('home', 'and', lang)} <a href="https://hono.dev" target="_blank" rel="noopener">Hono</a></p>
+        </div>
+      </footer>
 
-      {/* ===== RIGHT SIDEBAR WIDGETS ===== */}
+      {/* ===== RIGHT SIDEBAR WIDGETS (preserved) ===== */}
       <aside class="sidebar-widgets" id="sidebarWidgets">
-        {/* Toolbar buttons */}
         <div class="sw-toolbar">
           <button class="sw-btn" data-widget="music" title={lang === 'zh' ? '音乐' : 'Music'}>
             <i class="fa-solid fa-music"></i>
@@ -99,21 +82,16 @@ export function pageLayout({ lang, activePage, children }: LayoutProps) {
           </button>
         </div>
 
-        {/* Panels (shown when active) */}
         <div class="sw-panel" id="swPanel-music">
           <div class="sw-panel-header">
             <span><i class="fa-solid fa-music"></i> {lang === 'zh' ? '音乐' : 'Music'}</span>
             <button class="sw-panel-close"><i class="fa-solid fa-xmark"></i></button>
           </div>
           <div class="sw-panel-body sw-music-body">
-            <div class="sw-music-cover" id="swMusicCover">
-              <i class="fa-solid fa-compact-disc"></i>
-            </div>
+            <div class="sw-music-cover" id="swMusicCover"><i class="fa-solid fa-compact-disc"></i></div>
             <div class="sw-music-info">
               <div class="sw-music-title" id="swMusicTitle">Chill Vibes</div>
-              <div class="sw-music-bars" id="swMusicBars">
-                <span></span><span></span><span></span><span></span><span></span>
-              </div>
+              <div class="sw-music-bars" id="swMusicBars"><span></span><span></span><span></span><span></span><span></span></div>
             </div>
             <div class="sw-music-controls">
               <button class="sw-music-prev" id="swMusicPrev"><i class="fa-solid fa-backward-step"></i></button>
