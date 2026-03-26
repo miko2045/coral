@@ -32,14 +32,14 @@ export function homePage(profile: any, websites: any[], repos: any[], files: any
 
         <div class="hero-content">
           <div class="hero-avatar-wrap">
-            <img src={profile.avatar} alt="Avatar" class="hero-avatar" loading="eager" />
-            <span class="hero-status-dot"></span>
+            <img src={profile.avatar} alt={`${profile.name} avatar`} class="hero-avatar" loading="eager" width="96" height="96" fetchpriority="high" />
+            <span class="hero-status-dot" aria-label="Online"></span>
           </div>
 
           <div class="hero-text">
             <p class="hero-greeting">{lang === 'zh' ? '你好，我是' : "Hi, I'm"}</p>
-            <h1 class="hero-name">{profile.name}</h1>
-            <p class="hero-tagline">{profile.tagline}</p>
+            <h1 class="hero-name" itemProp="name">{profile.name}</h1>
+            <p class="hero-tagline" itemProp="description">{profile.tagline}</p>
           </div>
 
           {profile.status && (
@@ -49,10 +49,10 @@ export function homePage(profile: any, websites: any[], repos: any[], files: any
             </div>
           )}
 
-          <div class="hero-socials">
-            {profile.socials?.github && <a href={profile.socials.github} class="hero-social-link" target="_blank" rel="noopener" title="GitHub"><i class="fa-brands fa-github"></i></a>}
-            {profile.socials?.twitter && <a href={profile.socials.twitter} class="hero-social-link" target="_blank" rel="noopener" title="Twitter"><i class="fa-brands fa-x-twitter"></i></a>}
-            {profile.email && <a href={`mailto:${profile.email}`} class="hero-social-link" title="Email"><i class="fa-solid fa-envelope"></i></a>}
+          <div class="hero-socials" role="list" aria-label={lang === 'zh' ? '社交链接' : 'Social links'}>
+            {profile.socials?.github && <a href={profile.socials.github} class="hero-social-link" target="_blank" rel="noopener noreferrer" title="GitHub" role="listitem" aria-label="GitHub"><i class="fa-brands fa-github" aria-hidden="true"></i></a>}
+            {profile.socials?.twitter && <a href={profile.socials.twitter} class="hero-social-link" target="_blank" rel="noopener noreferrer" title="Twitter" role="listitem" aria-label="Twitter"><i class="fa-brands fa-x-twitter" aria-hidden="true"></i></a>}
+            {profile.email && <a href={`mailto:${profile.email}`} class="hero-social-link" title="Email" role="listitem" aria-label="Email"><i class="fa-solid fa-envelope" aria-hidden="true"></i></a>}
           </div>
         </div>
       </section>
@@ -69,7 +69,7 @@ export function homePage(profile: any, websites: any[], repos: any[], files: any
       </section>
 
       {/* ===== FEATURE GRID — 2x2 large cards ===== */}
-      <section class="feature-grid" data-aos="2">
+      <section class="feature-grid" data-aos="2" aria-label={lang === 'zh' ? '网站导航' : 'Site navigation'}>
         <a href="/projects" class="feature-card feature-card--blue">
           <div class="feature-card-icon"><i class="fa-solid fa-cube"></i></div>
           <div class="feature-card-content">

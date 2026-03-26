@@ -12,7 +12,7 @@ export function projectsPage(websites: any[], lang: Lang = 'zh') {
   })
 
   const content = (
-    <main class="page-content">
+    <main class="page-content" itemScope itemType="https://schema.org/CollectionPage">
       <div class="page-header-compact">
         <a href="/" class="page-back-btn" aria-label={lang === 'zh' ? '返回' : 'Back'}>
           <i class="fa-solid fa-arrow-left"></i>
@@ -43,7 +43,7 @@ export function projectsPage(websites: any[], lang: Lang = 'zh') {
 
       <div class="projects-grid">
         {sorted.map((site: any, i: number) => (
-          <a href={site.url} target="_blank" rel="noopener" class={`pj-card${site.pinned ? ' pj-card-pinned' : ''}`} style={`animation-delay:${Math.min(i * 0.06, 0.4)}s`} key={site.id}>
+          <a href={site.url} target="_blank" rel="noopener noreferrer" class={`pj-card${site.pinned ? ' pj-card-pinned' : ''}`} style={`animation-delay:${Math.min(i * 0.06, 0.4)}s`} key={site.id} itemScope itemType="https://schema.org/WebPage">
             <div class="pj-card-inner">
               {site.pinned && (
                 <div class="pj-pin-badge">

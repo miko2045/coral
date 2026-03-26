@@ -116,7 +116,7 @@ pages.get('/baidu_verify_codeva-JaoWqGeJlA.html', (c) => {
   })
 })
 
-// Sitemap.xml for search engines
+// Sitemap.xml for search engines — with lastmod per page
 pages.get('/sitemap.xml', async (c) => {
   const siteUrl = 'https://likeok.online'
   const now = new Date().toISOString().split('T')[0]
@@ -129,11 +129,15 @@ pages.get('/sitemap.xml', async (c) => {
   <url><loc>${siteUrl}/trending</loc><lastmod>${now}</lastmod><changefreq>hourly</changefreq><priority>0.9</priority></url>
 </urlset>`
   return new Response(xml, {
-    headers: { 'Content-Type': 'application/xml; charset=UTF-8', 'Cache-Control': 'public, max-age=3600' },
+    headers: {
+      'Content-Type': 'application/xml; charset=UTF-8',
+      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=7200',
+      'X-Robots-Tag': 'noindex',
+    },
   })
 })
 
-// robots.txt (app-level, supplements Cloudflare-managed robots.txt)
+// robots.txt (enhanced with crawl-delay)
 pages.get('/robots.txt', (c) => {
   const txt = `User-agent: *
 Allow: /
@@ -142,10 +146,16 @@ Disallow: /admin/
 Disallow: /api/
 Disallow: /s/
 
+# Crawl rate
+Crawl-delay: 1
+
 Sitemap: https://likeok.online/sitemap.xml
 `
   return new Response(txt, {
-    headers: { 'Content-Type': 'text/plain; charset=UTF-8' },
+    headers: {
+      'Content-Type': 'text/plain; charset=UTF-8',
+      'Cache-Control': 'public, max-age=86400',
+    },
   })
 })
 

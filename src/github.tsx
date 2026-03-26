@@ -84,7 +84,7 @@ export function githubPage(repos: any[], lang: Lang = 'zh') {
         {repos.map((repo: any, i: number) => {
           const color = langColors[repo.language] || '#888'
           return (
-          <a href={repo.url} target="_blank" rel="noopener"
+          <a href={repo.url} target="_blank" rel="noopener noreferrer"
              class={`gh-card ${i === 0 ? 'gh-card-featured' : ''}`}
              style={`animation-delay:${Math.min(i * 0.06, 0.4)}s; --lang-color:${color}`}
              key={repo.id}>

@@ -187,6 +187,7 @@
     function closeMenu() {
       btn.classList.remove('open');
       nav.classList.remove('mobile-open');
+      btn.setAttribute('aria-expanded', 'false');
     }
 
     // Use both touchstart (instant on mobile) and click (fallback for desktop)
@@ -202,6 +203,7 @@
       e.stopPropagation();
       btn.classList.toggle('open');
       nav.classList.toggle('mobile-open');
+      btn.setAttribute('aria-expanded', nav.classList.contains('mobile-open') ? 'true' : 'false');
     };
     btn.addEventListener('touchstart', toggleMenu, { passive: false });
     btn.addEventListener('click', toggleMenu);
@@ -792,17 +794,30 @@
       .catch(() => null);
   }
 
-  // Eagerly prefetch all SPA routes at load for instant navigation
+  // Eagerly prefetch all SPA routes — uses scheduler for low-priority network
   function prefetchAllRoutes() {
     const current = window.location.pathname;
-    SPA_ROUTES.forEach(route => {
-      if (route !== current && !allPagesCache[route]) {
-        fetch(route, { credentials: 'same-origin' })
-          .then(r => r.ok ? r.text() : null)
-          .then(html => { if (html) allPagesCache[route] = html; })
-          .catch(() => {});
-      }
+    // Prioritize adjacent routes first for most likely navigation
+    const currentIdx = ROUTE_ORDER[current] ?? 0;
+    const sorted = [...SPA_ROUTES].sort((a, b) => {
+      const da = Math.abs((ROUTE_ORDER[a] ?? 0) - currentIdx);
+      const db = Math.abs((ROUTE_ORDER[b] ?? 0) - currentIdx);
+      return da - db;
     });
+    let i = 0;
+    function fetchNext() {
+      while (i < sorted.length) {
+        const route = sorted[i++];
+        if (route !== current && !allPagesCache[route]) {
+          fetch(route, { credentials: 'same-origin', priority: 'low' })
+            .then(r => r.ok ? r.text() : null)
+            .then(html => { if (html) allPagesCache[route] = html; fetchNext(); })
+            .catch(() => fetchNext());
+          return; // Sequential — avoid saturating network
+        }
+      }
+    }
+    fetchNext();
   }
 
   async function navigateTo(href, pushState = true) {
@@ -1128,12 +1143,15 @@
   // Store initial history state
   history.replaceState({ path: window.location.pathname + window.location.search }, '');
 
-  // Eagerly prefetch all SPA routes after a short delay
-  // This ensures instant navigation on mobile
-  if ('requestIdleCallback' in window) {
-    requestIdleCallback(() => prefetchAllRoutes());
-  } else {
-    setTimeout(prefetchAllRoutes, 1500);
+  // Prefetch SPA routes only when connection is good
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const saveData = conn && (conn.saveData || conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g');
+  if (!saveData) {
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => prefetchAllRoutes(), { timeout: 3000 });
+    } else {
+      setTimeout(prefetchAllRoutes, 2000);
+    }
   }
 
   // ==============================================
@@ -1457,7 +1475,7 @@
     }
 
     // ========== VISITORS (China Province Map) ==========
-    // Track visitor once per page load (POST — records IP, deduplicates on server)
+    // Track visitor — defer to avoid blocking initial render
     let visitorTracked = false;
     let visitorDataCache = null;
     async function trackVisitor() {
@@ -1466,16 +1484,18 @@
       try {
         const res = await fetch('/api/sidebar/visitors/track', { method: 'POST' });
         const data = await res.json();
-        // Cache the result from track (it returns updated data)
         if (data && typeof data.total !== 'undefined') {
           visitorDataCache = data;
-          // If the visitors panel is already open, refresh it immediately
           renderVisitorMap(data);
         }
       } catch {}
     }
-    // Track on first page load
-    trackVisitor();
+    // Defer tracking to after page fully loads
+    if (document.readyState === 'complete') {
+      setTimeout(trackVisitor, 1000);
+    } else {
+      window.addEventListener('load', () => setTimeout(trackVisitor, 1000), { once: true });
+    }
 
     // China province SVG paths (Mercator projection, viewBox 0 0 516 505)
     const provPaths = {

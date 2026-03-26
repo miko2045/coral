@@ -1,6 +1,6 @@
 /* ======================================
-   PORTAL — Clean Dual-Theme Design v2
-   Complete layout overhaul
+   PORTAL — Clean Dual-Theme Design v3
+   Complete layout overhaul + optimization
    ====================================== */
 
 /* === Reset & Base === */
@@ -12,6 +12,36 @@
 html {
   touch-action: manipulation;
   -ms-touch-action: manipulation;
+}
+
+/* === Skip Link (accessibility) === */
+.skip-link {
+  position: fixed;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100000;
+  padding: 8px 20px;
+  background: var(--accent, #3B82F6);
+  color: #fff;
+  border-radius: 0 0 8px 8px;
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 0;
+  outline: 2px solid var(--accent, #3B82F6);
+  outline-offset: 2px;
+}
+
+/* === Focus visible ring (accessibility) === */
+:focus-visible {
+  outline: 2px solid var(--accent, #3B82F6);
+  outline-offset: 2px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 a, button, [role="button"], .nav-link, .filter-tag, .trending-tab,

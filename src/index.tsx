@@ -18,7 +18,6 @@ const app = new Hono<AppEnv>()
 
 // ==================== Global Error Handler ====================
 app.onError((err, c) => {
-  // Never leak stack traces or internal details to the client
   const reqId = crypto.randomUUID().slice(0, 8)
   console.error(`[Error:${reqId}]`, err.message, err.stack)
   if (c.req.path.startsWith('/api/') || c.req.path.startsWith('/admin/api/')) {
@@ -40,7 +39,7 @@ app.use('*', secureHeaders({
     styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.loli.net"],
     fontSrc: ["'self'", "https://cdn.jsdelivr.net", "https://gstatic.loli.net", "https://fonts.gstatic.com", "data:"],
     imgSrc: ["'self'", "https:", "data:"],
-    connectSrc: ["'self'"],
+    connectSrc: ["'self'", "https://api.github.com"],
     objectSrc: ["'none'"],
     baseUri: ["'self'"],
     formAction: ["'self'"],
@@ -51,9 +50,9 @@ app.use('*', secureHeaders({
   xFrameOptions: 'DENY',
   referrerPolicy: 'strict-origin-when-cross-origin',
   strictTransportSecurity: 'max-age=63072000; includeSubDomains; preload',
-  crossOriginEmbedderPolicy: false, // Don't block CDN resources
+  crossOriginEmbedderPolicy: false,
   crossOriginOpenerPolicy: 'same-origin',
-  crossOriginResourcePolicy: 'same-origin',
+  crossOriginResourcePolicy: 'cross-origin',
 }))
 
 // 2. Additional security headers + Cache control + CORS hardening
@@ -83,6 +82,16 @@ app.use('*', async (c, next) => {
     return
   }
 
+  // Static assets: long-term cache (cache-busted via ?v=hash)
+  if (path.startsWith('/static/') && (path.includes('?v=') || path.match(/\.(woff2?|ttf|eot|svg|png|jpg|ico)$/))) {
+    c.header('Cache-Control', 'public, max-age=31536000, immutable')
+    return
+  }
+  // Static assets without version: short cache
+  if (path.startsWith('/static/')) {
+    c.header('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800')
+    return
+  }
   // HTML pages: always revalidate with server (ensures latest cache-busted URLs)
   const ct = c.res.headers.get('Content-Type') || ''
   if (ct.includes('text/html')) {
@@ -162,7 +171,7 @@ app.use('*', async (c, next) => {
   }
 
   // Block requests with no User-Agent on page routes (likely automated)
-  if ((!ua || ua.length < 5) && !path.startsWith('/api/') && path !== '/') {
+  if ((!ua || ua.length < 5) && !path.startsWith('/api/') && path !== '/' && !path.startsWith('/static/')) {
     return c.text('Access Denied', 403)
   }
 
@@ -181,7 +190,7 @@ app.use('*', async (c, next) => {
     return c.text('Forbidden', 403)
   }
   // Block common attack probes
-  if (path.match(/\.(php|asp|aspx|jsp|cgi|env|git|svn|bak|old|sql|log)$/i)) {
+  if (path.match(/\.(php|asp|aspx|jsp|cgi|env|git|svn|bak|old|sql|log|ini|conf|yml|yaml|toml|xml)$/i)) {
     return c.text('Not Found', 404)
   }
   return next()
